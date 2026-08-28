@@ -60,7 +60,22 @@ export interface LoadedHeroes {
   copProto: THREE.Object3D;
   copClips: THREE.AnimationClip[];
   car: THREE.Object3D;
+  copCar: THREE.Object3D;
+  trafficPool: THREE.Object3D[];
 }
+
+const HERO_CAR_URL = "/models/cars/sedan-sports.glb";
+const COP_CAR_URL = "/models/cars/police.glb";
+const TRAFFIC_CAR_URLS = [
+  "/models/cars/sedan.glb",
+  "/models/cars/suv.glb",
+  "/models/cars/taxi.glb",
+  "/models/cars/hatchback-sports.glb",
+  "/models/cars/van.glb",
+  "/models/cars/delivery.glb",
+  "/models/cars/truck.glb",
+];
+const CAR_LENGTH = 4.7;
 
 function groundAndScale(obj: THREE.Object3D, targetHeight: number): void {
   obj.updateMatrixWorld(true);
@@ -109,6 +124,34 @@ function enableShadows(root: THREE.Object3D): void {
   });
 }
 
+function prepareKenneyCar(obj: THREE.Object3D, targetLength = CAR_LENGTH): void {
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const longest = Math.max(size.x, size.z, 0.001);
+  obj.scale.multiplyScalar(targetLength / longest);
+  obj.updateMatrixWorld(true);
+  box.setFromObject(obj);
+  obj.position.y -= box.min.y;
+  const c = box.getCenter(new THREE.Vector3());
+  obj.position.x -= c.x;
+  obj.position.z -= c.z;
+  enableShadows(obj);
+  obj.traverse((ch) => {
+    const m = ch as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.frustumCulled = false;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    for (const mat of mats) {
+      const sm = mat as THREE.MeshStandardMaterial;
+      if (sm.map) sm.map.colorSpace = THREE.SRGBColorSpace;
+      sm.metalness = Math.min(0.35, sm.metalness ?? 0);
+      sm.roughness = Math.min(0.78, Math.max(0.35, sm.roughness ?? 0.55));
+    }
+  });
+}
+
 function remapClips(clips: THREE.AnimationClip[]): void {
   const aliases: Record<string, string> = {
     Idle: "Idle_Loop",
@@ -146,9 +189,11 @@ function remapClips(clips: THREE.AnimationClip[]): void {
 
 export async function loadHeroes(): Promise<LoadedHeroes> {
   const loader = new GLTFLoader();
-  const [playerGltf, carGltf] = await Promise.all([
+  const [playerGltf, heroCarGltf, copCarGltf, ...trafficGltfs] = await Promise.all([
     loader.loadAsync("/models/player.glb"),
-    loader.loadAsync("/models/car.glb"),
+    loader.loadAsync(HERO_CAR_URL),
+    loader.loadAsync(COP_CAR_URL),
+    ...TRAFFIC_CAR_URLS.map((url) => loader.loadAsync(url)),
   ]);
   remapClips(playerGltf.animations);
 
@@ -175,32 +220,13 @@ export async function loadHeroes(): Promise<LoadedHeroes> {
   tintCop(copProto);
   enableShadows(copProto);
 
-  const car = carGltf.scene;
-  car.updateMatrixWorld(true);
-  const carBox = new THREE.Box3().setFromObject(car);
-  const carSize = new THREE.Vector3();
-  carBox.getSize(carSize);
-  const longest = Math.max(carSize.x, carSize.z, 0.001);
-  car.scale.multiplyScalar(4.7 / longest);
-  car.updateMatrixWorld(true);
-  const box2 = new THREE.Box3().setFromObject(car);
-  car.position.y -= box2.min.y;
-  const c = box2.getCenter(new THREE.Vector3());
-  car.position.x -= c.x;
-  car.position.z -= c.z;
-  enableShadows(car);
-  car.traverse((ch) => {
-    const m = ch as THREE.Mesh;
-    if (m.isMesh) {
-      m.frustumCulled = false;
-      const mats = Array.isArray(m.material) ? m.material : [m.material];
-      for (const mat of mats) {
-        const sm = mat as THREE.MeshStandardMaterial;
-        if (sm.color) sm.color.multiplyScalar(1.25);
-        sm.metalness = Math.min(0.55, sm.metalness ?? 0.3);
-        sm.roughness = Math.min(0.7, sm.roughness ?? 0.5);
-      }
-    }
+  const car = heroCarGltf.scene;
+  prepareKenneyCar(car);
+  const copCar = copCarGltf.scene;
+  prepareKenneyCar(copCar);
+  const trafficPool = trafficGltfs.map((gltf) => {
+    prepareKenneyCar(gltf.scene);
+    return gltf.scene;
   });
 
   return {
@@ -209,5 +235,7 @@ export async function loadHeroes(): Promise<LoadedHeroes> {
     copProto,
     copClips: playerGltf.animations,
     car,
+    copCar,
+    trafficPool,
   };
 }

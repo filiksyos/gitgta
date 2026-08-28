@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { GameState, PedState, VehicleState } from "../core/types";
 import type { District } from "../world/district";
-import { buildCity, makeMarker, makePedPrimitive, makeTrafficCar } from "./city";
+import { buildCity, makeMarker, makePedPrimitive } from "./city";
 import { HeroClips, loadHeroes, type LoadedHeroes } from "./heroes";
 
 export class GameView {
@@ -148,8 +148,8 @@ export class GameView {
   }
 
   private makeCar(v: VehicleState): THREE.Object3D {
+    const wrap = new THREE.Group();
     if (v.hero) {
-      const wrap = new THREE.Group();
       wrap.add(this.heroes.car);
       const glow = new THREE.PointLight(0xffcc66, 2.2, 9);
       glow.position.set(0, 1.4, 0);
@@ -157,28 +157,15 @@ export class GameView {
       return wrap;
     }
     if (v.cop) {
-      const wrap = new THREE.Group();
-      const clone = this.heroes.car.clone(true);
-      clone.traverse((c) => {
-        const m = c as THREE.Mesh;
-        if (!m.isMesh) return;
-        const mats = Array.isArray(m.material) ? m.material : [m.material];
-        m.material = mats.map((mat) => {
-          const copy = (mat as THREE.MeshStandardMaterial).clone();
-          if ("color" in copy && copy.color) copy.color.lerp(new THREE.Color(0xececec), 0.55);
-          return copy;
-        });
-      });
-      wrap.add(clone);
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.9, 0.14, 0.35),
-        new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xff2244, emissiveIntensity: 2 }),
-      );
-      bar.position.y = 1.55;
-      wrap.add(bar);
+      wrap.add(this.heroes.copCar.clone(true));
+      const glow = new THREE.PointLight(0xff2244, 1.8, 8);
+      glow.position.set(0, 1.45, 0);
+      wrap.add(glow);
       return wrap;
     }
-    return makeTrafficCar(false);
+    const pool = this.heroes.trafficPool;
+    wrap.add(pool[Math.abs(v.id) % pool.length].clone(true));
+    return wrap;
   }
 
   private syncPeds(state: GameState, dt: number): void {
