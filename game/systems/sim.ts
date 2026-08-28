@@ -10,7 +10,6 @@ import { updateMission } from "./mission";
 import { updateCamera } from "./camera";
 
 export function createGame(district: District, seed = 1992): { state: GameState; district: District } {
-  const yaw = Math.atan2(-district.garage.x, -district.garage.z || 1);
   const state: GameState = {
     phase: "title",
     time: 0,
@@ -18,7 +17,7 @@ export function createGame(district: District, seed = 1992): { state: GameState;
       x: district.garage.x,
       y: 0,
       z: district.garage.z + 6,
-      yaw,
+      yaw: 0,
       vx: 0,
       vy: 0,
       vz: 0,

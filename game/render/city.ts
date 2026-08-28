@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { District } from "../world/district";
 import { ROAD_HALF } from "../world/district";
-import { asphaltTexture, dirtTexture, facadeTexture, sidewalkTexture } from "./textures";
+import { asphaltTexture, commitFacadeTexture, dirtTexture, facadeTexture, sidewalkTexture } from "./textures";
 
 export function buildCity(scene: THREE.Scene, district: District, quality: "high" | "low"): THREE.Group {
   const root = new THREE.Group();
@@ -19,7 +19,7 @@ export function buildCity(scene: THREE.Scene, district: District, quality: "high
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(spanX + 40, spanZ + 40),
-    new THREE.MeshStandardMaterial({ map: dirt, roughness: 1, color: 0x6a5a62 }),
+    new THREE.MeshStandardMaterial({ map: dirt, roughness: 1, color: 0x161b22 }),
   );
   ground.position.set(midX, 0, midZ);
   ground.rotation.x = -Math.PI / 2;
@@ -60,11 +60,14 @@ export function buildCity(scene: THREE.Scene, district: District, quality: "high
   }
 
   for (const b of district.buildings) {
-    const tex = facadeTexture(b.hue, true);
+    const tex =
+      b.commitLevel != null ? commitFacadeTexture(b.commitLevel, b.windows) : facadeTexture(b.hue, true);
     const mat = new THREE.MeshStandardMaterial({
       map: tex,
       roughness: 0.86,
       color: 0xdddddd,
+      emissive: b.commitLevel != null ? 0x0e4429 : 0x000000,
+      emissiveIntensity: b.commitLevel != null ? 0.22 + (b.commitLevel ?? 0) * 0.08 : 0,
     });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), mat);
     mesh.position.set(b.x, b.h / 2, b.z);
@@ -73,7 +76,10 @@ export function buildCity(scene: THREE.Scene, district: District, quality: "high
     root.add(mesh);
     const roof = new THREE.Mesh(
       new THREE.BoxGeometry(b.w + 0.3, 0.25, b.d + 0.3),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a22, roughness: 1 }),
+      new THREE.MeshStandardMaterial({
+        color: b.commitLevel != null ? 0x052e16 : 0x3a2a22,
+        roughness: 1,
+      }),
     );
     roof.position.set(b.x, b.h + 0.1, b.z);
     root.add(roof);
@@ -181,7 +187,7 @@ function makeProp(x: number, z: number, yaw: number, kind: string, quality: "hig
 }
 
 function addSkyline(root: THREE.Group, district: District): void {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x3a2a48, roughness: 1 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x0e4429, roughness: 1, emissive: 0x052e16, emissiveIntensity: 0.35 });
   const midX = (district.worldMinX + district.worldMaxX) / 2;
   const midZ = (district.worldMinZ + district.worldMaxZ) / 2;
   const r = Math.max(district.worldMaxX - district.worldMinX, district.worldMaxZ - district.worldMinZ) / 2 + 36;

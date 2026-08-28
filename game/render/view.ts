@@ -90,7 +90,7 @@ export class GameView {
     if (!this.ready) return;
     const p = state.player;
     this.playerWrap.position.set(p.x, p.y, p.z);
-    this.playerWrap.rotation.y = p.yaw;
+    this.playerWrap.rotation.y = p.yaw + Math.PI;
     this.playerWrap.visible = p.inVehicle < 0;
     this.heroes.playerClips.play(p.anim, p.anim.startsWith("Jump") || p.anim.startsWith("Punch") || p.anim === "Pistol_Shoot" ? 0.08 : 0.18);
     this.heroes.playerClips.update(dt);
@@ -190,7 +190,7 @@ export class GameView {
         this.scene.add(wrap.obj);
       }
       wrap.obj.position.set(ped.x, 0, ped.z);
-      wrap.obj.rotation.y = ped.yaw;
+      wrap.obj.rotation.y = ped.yaw + Math.PI;
       wrap.obj.visible = ped.health > 0 && ped.vehicleId < 0;
       if (wrap.clips) {
         const moving = ped.kind === "cop" ? "Sprint_Loop" : "Walk_Loop";

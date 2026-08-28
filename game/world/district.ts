@@ -10,34 +10,6 @@ const ROWS = 3;
 const BLOCK = 36;
 const CELL = BLOCK + ROAD_HALF * 2;
 
-const LANG_HUE: Record<string, number> = {
-  TypeScript: 0.58,
-  JavaScript: 0.12,
-  Python: 0.55,
-  Rust: 0.08,
-  Go: 0.48,
-  Ruby: 0.98,
-  Java: 0.06,
-  C: 0.62,
-  "C++": 0.64,
-  "C#": 0.72,
-  PHP: 0.78,
-  Swift: 0.04,
-  Kotlin: 0.82,
-  Dart: 0.5,
-  HTML: 0.02,
-  CSS: 0.6,
-  Shell: 0.32,
-  Vue: 0.38,
-  Svelte: 0.02,
-  Haskell: 0.78,
-  Elixir: 0.82,
-  Scala: 0.98,
-  Lua: 0.58,
-};
-
-const LEONIDA = [0.92, 0.08, 0.55, 0.62, 0.78, 0.48, 0.14];
-
 export interface BuildingSpec {
   x: number;
   z: number;
@@ -48,6 +20,7 @@ export interface BuildingSpec {
   windows: boolean;
   kind: "house" | "shop" | "warehouse" | "garage";
   label?: string;
+  commitLevel?: number;
 }
 
 export interface PropSpec {
@@ -111,9 +84,16 @@ function heightFromRepo(repo: CityRepo): number {
   return Math.min(62, 10 + Math.log2(1 + weight) * 7);
 }
 
-function hueFor(lang: string | null | undefined, fallback: number): number {
-  if (!lang) return fallback;
-  return LANG_HUE[lang] ?? fallback;
+function commitLevel(count: number): number {
+  if (count <= 0) return 0;
+  if (count <= 2) return 1;
+  if (count <= 5) return 2;
+  if (count <= 9) return 3;
+  return 4;
+}
+
+function commitHue(level: number): number {
+  return 0.33 + level * 0.012;
 }
 
 export function onRoad(district: Pick<District, "streetsX" | "streetsZ">, x: number, z: number): boolean {
@@ -194,7 +174,7 @@ export function buildDistrictFromGitHub(payload: CityPayload, focusRepo?: string
         if (isPlaza && Math.abs(x - garage.x) < 10 && Math.abs(z - garage.z) < 10) continue;
         if (Math.abs(x - steal.x) < 8 && Math.abs(z - steal.z) < 8) continue;
         const h = heightFromCount(day.count);
-        const hue = LEONIDA[Math.min(LEONIDA.length - 1, Math.floor(Math.log2(1 + day.count)))];
+        const level = commitLevel(day.count);
         const kind: BuildingSpec["kind"] = h > 28 ? "warehouse" : h > 12 ? "shop" : "house";
         buildings.push({
           x,
@@ -202,10 +182,11 @@ export function buildDistrictFromGitHub(payload: CityPayload, focusRepo?: string
           w: 4.1,
           d: 4.1,
           h,
-          hue,
+          hue: commitHue(level),
           windows: day.count > 2,
           kind,
           label: day.count >= 12 ? day.date.slice(5) : undefined,
+          commitLevel: level,
         });
         colliders.push(aabb(x, z, 4.1, 4.1, h, "building"));
         if (!tallest || h > tallest.h) {
@@ -221,10 +202,11 @@ export function buildDistrictFromGitHub(payload: CityPayload, focusRepo?: string
         w: 10,
         d: 10,
         h,
-        hue: hueFor(repo.primaryLanguage, LEONIDA[i % LEONIDA.length]),
+        hue: commitHue(3),
         windows: true,
         kind: h > 14 ? "warehouse" : "shop",
         label: repo.name,
+        commitLevel: 3,
       });
       colliders.push(aabb(center.x, center.z, 10, 10, h, "building"));
     } else {
@@ -259,10 +241,11 @@ export function buildDistrictFromGitHub(payload: CityPayload, focusRepo?: string
       w: 7.4,
       d: 7.4,
       h,
-      hue: hueFor(repo.primaryLanguage, LEONIDA[i % LEONIDA.length]),
+      hue: commitHue(4),
       windows: true,
       kind: "warehouse",
       label: repo.name,
+      commitLevel: 4,
     });
     colliders.push(aabb(spot.x, spot.z, 7.4, 7.4, h, "building"));
     repoMarks.push({ repo, x: spot.x, z: spot.z });
@@ -274,10 +257,11 @@ export function buildDistrictFromGitHub(payload: CityPayload, focusRepo?: string
     w: 12,
     d: 8,
     h: 5.4,
-    hue: 0.08,
+    hue: commitHue(2),
     windows: false,
     kind: "garage",
     label: payload.login,
+    commitLevel: 2,
   });
   colliders.push(aabb(garage.x, garage.z - 5, 12, 8, 5.4, "building"));
   colliders.push(aabb(garage.x - 7, garage.z + 1, 1.2, 10, 4.2, "wall"));

@@ -121,6 +121,34 @@ body {
   font-size: 14px;
 }
 
+.radar-wrap {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 168px;
+  height: 168px;
+}
+
+#hud-radar {
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #f0c14a, 4px 6px 0 #0008;
+  background: #010409;
+}
+
+.radar-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -16px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #39d353;
+}
+
 .speedo {
   position: absolute;
   bottom: 22px;

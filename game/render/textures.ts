@@ -61,6 +61,30 @@ export function dirtTexture(): THREE.CanvasTexture {
   });
 }
 
+export function commitFacadeTexture(level: number, lit: boolean): THREE.CanvasTexture {
+  const walls = ["#0d1117", "#0e4429", "#006d32", "#26a641", "#39d353"];
+  const roofs = ["#010409", "#052e16", "#0e4429", "#006d32", "#196c2e"];
+  const wall = walls[Math.max(0, Math.min(4, level))] ?? walls[1];
+  const roof = roofs[Math.max(0, Math.min(4, level))] ?? roofs[1];
+  return canvasTex(256, (ctx, s) => {
+    ctx.fillStyle = wall;
+    ctx.fillRect(0, 0, s, s);
+    ctx.fillStyle = roof;
+    ctx.fillRect(0, 0, s, 18);
+    const cols = 4;
+    const rows = 5;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const on = lit && Math.random() > 0.5;
+        ctx.fillStyle = on ? "#9be9a8" : "#010409";
+        const wx = 22 + x * 58;
+        const wy = 28 + y * 42;
+        ctx.fillRect(wx, wy, 28, 22);
+      }
+    }
+  });
+}
+
 export function facadeTexture(hue: number, lit: boolean): THREE.CanvasTexture {
   return canvasTex(256, (ctx, s) => {
     ctx.fillStyle = `hsl(${hue * 360} 32% 46%)`;

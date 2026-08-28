@@ -25,6 +25,7 @@ export function startGame(opts: StartGameOptions): () => void {
   input.attach(canvas);
   const audio = new AudioFx();
   const hud = new Hud(hudEl);
+  hud.setDistrict(world);
   const screens = new Screens(overlayEl);
   const view = new GameView(canvas);
   mountTouch(touchEl, input);
