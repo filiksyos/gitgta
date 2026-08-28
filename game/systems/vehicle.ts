@@ -95,7 +95,7 @@ function drivePlayer(v: VehicleState, input: InputIntent, dt: number): void {
   const boost = input.sprint ? BOOST : 0;
   const handbrake = input.jump;
 
-  v.steer = damp(v.steer, clamp(input.moveX, -1, 1), STEER_ALIGN, dt);
+  v.steer = damp(v.steer, clamp(-input.moveX, -1, 1), STEER_ALIGN, dt);
 
   const speedAbs = Math.abs(v.speed);
   if (throttle > 0.05) {

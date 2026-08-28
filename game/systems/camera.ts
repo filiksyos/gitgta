@@ -11,7 +11,7 @@ export function updateCamera(state: GameState, input: InputIntent, dt: number): 
 
   if (Math.abs(input.lookDx) > 0.01 || Math.abs(input.lookDy) > 0.01) {
     cam.lookIdle = 0;
-    cam.orbitYaw -= input.lookDx * 0.0022;
+    if (driving) cam.orbitYaw -= input.lookDx * 0.0022;
     cam.orbitPitch = clamp(cam.orbitPitch - input.lookDy * 0.0016, -0.35, 0.45);
   } else {
     cam.lookIdle += dt;
@@ -22,8 +22,8 @@ export function updateCamera(state: GameState, input: InputIntent, dt: number): 
     cam.orbitPitch += -cam.orbitPitch * Math.min(1, rate * dt * 0.65);
   }
 
-  const desiredYaw = heading + cam.orbitYaw;
-  cam.yaw = dampAngle(cam.yaw, desiredYaw, driving ? 6.5 : 9, dt);
+  const desiredYaw = heading + (driving ? cam.orbitYaw : 0);
+  cam.yaw = dampAngle(cam.yaw, desiredYaw, driving ? 6.5 : 14, dt);
   cam.pitch = damp(cam.pitch, 0.16 + cam.orbitPitch, 8, dt);
 
   const speedAbs = Math.abs(speed);
@@ -32,8 +32,9 @@ export function updateCamera(state: GameState, input: InputIntent, dt: number): 
   const height = driving ? 3.8 + speedAbs * 0.02 : 2.85;
   cam.height = damp(cam.height, height, 8, dt);
 
-  const wantX = p.x - Math.sin(cam.yaw) * cam.dist * Math.cos(cam.pitch);
-  const wantZ = p.z - Math.cos(cam.yaw) * cam.dist * Math.cos(cam.pitch);
+  const horiz = Math.max(Math.cos(cam.pitch), driving ? 0.5 : 0.72);
+  const wantX = p.x - Math.sin(cam.yaw) * cam.dist * horiz;
+  const wantZ = p.z - Math.cos(cam.yaw) * cam.dist * horiz;
   const wantY = height + Math.sin(cam.pitch) * cam.dist;
   cam.x = damp(cam.x, wantX, 7.5, dt);
   cam.y = damp(cam.y, wantY, 8, dt);

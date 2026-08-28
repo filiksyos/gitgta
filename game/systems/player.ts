@@ -37,11 +37,13 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
     return;
   }
 
-  const yaw = state.camera.yaw;
+  p.yaw = wrapAngle(p.yaw - input.lookDx * 0.0022);
+
+  const yaw = p.yaw;
   const fx = Math.sin(yaw);
   const fz = Math.cos(yaw);
-  const rx = Math.cos(yaw);
-  const rz = -Math.sin(yaw);
+  const rx = -Math.cos(yaw);
+  const rz = Math.sin(yaw);
   const wishX = fx * input.moveZ + rx * input.moveX;
   const wishZ = fz * input.moveZ + rz * input.moveX;
   const wishLen = Math.hypot(wishX, wishZ);
@@ -84,10 +86,6 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
       p.vx -= resolved.nx * push;
       p.vz -= resolved.nz * push;
     }
-  }
-
-  if (wishLen > 0.1 && p.grounded) {
-    p.yaw = wrapAngle(Math.atan2(wishX, wishZ));
   }
 
   const spd = Math.hypot(p.vx, p.vz);
