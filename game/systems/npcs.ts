@@ -51,6 +51,8 @@ export function spawnAmbient(state: GameState, district: District): void {
       occupied: false,
       skid: 0,
       stalled: 0,
+      steer: 0,
+      yawRate: 0,
     });
   }
 }
@@ -163,6 +165,8 @@ function maintainCops(state: GameState, district: District): void {
       occupied: true,
       skid: 0,
       stalled: 0,
+      steer: 0,
+      yawRate: 0,
     };
     state.vehicles.push(v);
     copCars.push(v);

@@ -1,39 +1,49 @@
-import { damp, lerp } from "../core/math";
-import type { GameState } from "../core/types";
+import { clamp, damp, dampAngle, lerp } from "../core/math";
+import type { GameState, InputIntent } from "../core/types";
 
-export function updateCamera(state: GameState, dt: number): void {
+export function updateCamera(state: GameState, input: InputIntent, dt: number): void {
   const p = state.player;
+  const cam = state.camera;
   const driving = p.inVehicle >= 0;
-  const speed = Math.hypot(p.vx, p.vz);
-  const lookX = Math.sin(state.camera.yaw);
-  const lookZ = Math.cos(state.camera.yaw);
+  const heading = p.yaw;
+  const driven = driving ? state.vehicles.find((v) => v.id === p.inVehicle) : undefined;
+  const speed = driven ? driven.speed : Math.hypot(p.vx, p.vz);
 
-  const distTarget = driving ? 9.4 : 4.6;
-  const heightTarget = driving ? 3.2 : 1.55;
-  const fovTarget = driving ? 56 + Math.min(16, speed * 0.45) : 54;
-  state.camera.dist = damp(state.camera.dist, distTarget, 4.2, dt);
-  state.camera.height = damp(state.camera.height, heightTarget, 4.2, dt);
-  state.camera.fov = damp(state.camera.fov, fovTarget, 3.2, dt);
+  if (Math.abs(input.lookDx) > 0.01 || Math.abs(input.lookDy) > 0.01) {
+    cam.lookIdle = 0;
+    cam.orbitYaw -= input.lookDx * 0.0022;
+    cam.orbitPitch = clamp(cam.orbitPitch - input.lookDy * 0.0016, -0.35, 0.45);
+  } else {
+    cam.lookIdle += dt;
+  }
+  if (cam.lookIdle > 1.35) {
+    const rate = driving ? 2.4 : 1.4;
+    cam.orbitYaw += -cam.orbitYaw * Math.min(1, rate * dt);
+    cam.orbitPitch += -cam.orbitPitch * Math.min(1, rate * dt * 0.65);
+  }
 
-  const shoulder = driving ? 0 : 0.72;
-  const ahead = driving ? 4.5 : 1.1;
-  const tx = p.x + lookZ * shoulder + Math.sin(p.yaw) * ahead * 0.15;
-  const tz = p.z - lookX * shoulder + Math.cos(p.yaw) * ahead * 0.15;
-  const ty = p.y + (driving ? 1.1 : 1.35);
+  const desiredYaw = heading + cam.orbitYaw;
+  cam.yaw = dampAngle(cam.yaw, desiredYaw, driving ? 6.5 : 9, dt);
+  cam.pitch = damp(cam.pitch, 0.16 + cam.orbitPitch, 8, dt);
 
-  state.camera.tx = damp(state.camera.tx, tx, 7, dt);
-  state.camera.ty = damp(state.camera.ty, ty, 7, dt);
-  state.camera.tz = damp(state.camera.tz, tz, 7, dt);
+  const speedAbs = Math.abs(speed);
+  const desiredDist = (driving ? 9.4 : 6.5) + speedAbs * (driving ? 0.11 : 0.04);
+  cam.dist = damp(cam.dist, desiredDist, 4.2, dt);
+  const height = driving ? 3.8 + speedAbs * 0.02 : 2.85;
+  cam.height = damp(cam.height, height, 8, dt);
 
-  const pitch = state.camera.pitch;
-  const back = state.camera.dist;
-  const desiredX = state.camera.tx - lookX * back * Math.cos(pitch);
-  const desiredZ = state.camera.tz - lookZ * back * Math.cos(pitch);
-  const desiredY = state.camera.ty + state.camera.height + Math.sin(pitch) * back;
+  const wantX = p.x - Math.sin(cam.yaw) * cam.dist * Math.cos(cam.pitch);
+  const wantZ = p.z - Math.cos(cam.yaw) * cam.dist * Math.cos(cam.pitch);
+  const wantY = height + Math.sin(cam.pitch) * cam.dist;
+  cam.x = damp(cam.x, wantX, 7.5, dt);
+  cam.y = damp(cam.y, wantY, 8, dt);
+  cam.z = damp(cam.z, wantZ, 7.5, dt);
 
-  state.camera.x = damp(state.camera.x, desiredX, 8.5, dt);
-  state.camera.y = damp(state.camera.y, Math.max(1.4, desiredY), 8.5, dt);
-  state.camera.z = damp(state.camera.z, desiredZ, 8.5, dt);
+  const lookAhead = driving ? 6 + speedAbs * 0.12 : 1.6;
+  cam.tx = damp(cam.tx, p.x + Math.sin(heading) * lookAhead * 0.15, 10, dt);
+  cam.ty = damp(cam.ty, driving ? 1.05 : 1.35, 8, dt);
+  cam.tz = damp(cam.tz, p.z + Math.cos(heading) * lookAhead * 0.15, 10, dt);
+  cam.fov = damp(cam.fov, clamp(50 + speedAbs * 0.28, 50, 64), 3.5, dt);
 
   state.shake = lerp(state.shake, 0, 1 - Math.exp(-6 * dt));
   state.lastHit = Math.max(0, state.lastHit - dt);

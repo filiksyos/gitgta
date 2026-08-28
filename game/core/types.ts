@@ -63,6 +63,8 @@ export interface VehicleState {
   occupied: boolean;
   skid: number;
   stalled: number;
+  steer: number;
+  yawRate: number;
 }
 
 export interface PedState {
@@ -129,6 +131,9 @@ export interface CameraState {
   tx: number;
   ty: number;
   tz: number;
+  orbitYaw: number;
+  orbitPitch: number;
+  lookIdle: number;
 }
 
 export interface WorldAabb {

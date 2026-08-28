@@ -1,13 +1,10 @@
-import { clamp, damp, dist2, lerpAngle } from "../core/math";
+import { damp, dist2, wrapAngle } from "../core/math";
 import type { GameState, InputIntent } from "../core/types";
 import { resolveCircle } from "./collision";
 import type { District } from "../world/district";
 
-const WALK = 3.4;
-const JOG = 5.6;
-const SPRINT = 8.4;
-const ACCEL = 38;
-const FRICTION = 14;
+const WALK = 6.4;
+const SPRINT = 9.2;
 const GRAVITY = 26;
 const JUMP = 8.2;
 const RADIUS = 0.42;
@@ -40,28 +37,21 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
     return;
   }
 
-  state.camera.yaw -= input.lookDx * 0.0024;
-  state.camera.pitch = clamp(state.camera.pitch - input.lookDy * 0.002, -0.55, 0.42);
-
-  const cy = Math.sin(state.camera.yaw);
-  const cz = Math.cos(state.camera.yaw);
-  const rx = cz;
-  const rz = -cy;
-  const wishX = rx * input.moveX + cy * input.moveZ;
-  const wishZ = rz * input.moveX + cz * input.moveZ;
+  const yaw = state.camera.yaw;
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  const rx = Math.cos(yaw);
+  const rz = -Math.sin(yaw);
+  const wishX = fx * input.moveZ + rx * input.moveX;
+  const wishZ = fz * input.moveZ + rz * input.moveX;
   const wishLen = Math.hypot(wishX, wishZ);
 
   p.sprinting = input.sprint && wishLen > 0.2 && p.grounded;
-  const max = !p.grounded ? JOG : p.sprinting ? SPRINT : wishLen > 0.85 ? JOG : WALK;
-  const tx = wishLen > 0.05 ? (wishX / Math.max(wishLen, 1)) * max : 0;
-  const tz = wishLen > 0.05 ? (wishZ / Math.max(wishLen, 1)) * max : 0;
-
-  p.vx += (tx - p.vx) * Math.min(1, ACCEL * dt / 12);
-  p.vz += (tz - p.vz) * Math.min(1, ACCEL * dt / 12);
-  if (wishLen < 0.05 && p.grounded) {
-    p.vx = damp(p.vx, 0, FRICTION, dt);
-    p.vz = damp(p.vz, 0, FRICTION, dt);
-  }
+  const speed = !p.grounded ? WALK : p.sprinting ? SPRINT : WALK;
+  const tx = wishLen > 0.08 ? (wishX / wishLen) * speed : 0;
+  const tz = wishLen > 0.08 ? (wishZ / wishLen) * speed : 0;
+  p.vx = damp(p.vx, tx, 14, dt);
+  p.vz = damp(p.vz, tz, 14, dt);
 
   if (input.jump && p.grounded && p.punchCd <= 0) {
     p.vy = JUMP;
@@ -96,8 +86,8 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
     }
   }
 
-  if (wishLen > 0.12 && p.grounded) {
-    p.yaw = lerpAngle(p.yaw, Math.atan2(wishX, wishZ), 1 - Math.exp(-12 * dt));
+  if (wishLen > 0.1 && p.grounded) {
+    p.yaw = wrapAngle(Math.atan2(wishX, wishZ));
   }
 
   const spd = Math.hypot(p.vx, p.vz);
@@ -113,7 +103,7 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
     p.anim = "Idle_Loop";
   } else if (p.sprinting) {
     p.anim = "Sprint_Loop";
-  } else if (spd > 4.6) {
+  } else if (spd > 7.2) {
     p.anim = "Jog_Fwd_Loop";
   } else {
     p.anim = "Walk_Loop";

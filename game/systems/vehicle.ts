@@ -1,17 +1,15 @@
-import { clamp, dist2 } from "../core/math";
+import { clamp, damp, dist2, lerp, wrapAngle } from "../core/math";
 import type { GameState, InputIntent, VehicleState } from "../core/types";
 import { resolveCircle } from "./collision";
 import type { District } from "../world/district";
 
-const ACCEL = 22;
+const MAX_SPEED = 34;
+const MAX_REVERSE = 11;
+const ACCEL = 26;
 const BOOST = 9;
-const BRAKE = 34;
-const REVERSE = 16;
-const MAX = 31;
-const MAX_BOOST = 38;
-const STEER = 2.35;
-const DRAG = 1.15;
-const LATERAL = 7.2;
+const BRAKE = 38;
+const DRAG = 1.6;
+const STEER_ALIGN = 10;
 const RADIUS = 1.85;
 
 export function updateVehicles(state: GameState, input: InputIntent, district: District, dt: number): void {
@@ -80,7 +78,11 @@ export function updateVehicles(state: GameState, input: InputIntent, district: D
       }
     }
 
-    v.speed = fwdX * v.vx + fwdZ * v.vz;
+    if (!driven) {
+      v.speed = fwdX * v.vx + fwdZ * v.vz;
+    } else if (hit.hit) {
+      v.speed = fwdX * v.vx + fwdZ * v.vz;
+    }
     if (v.health < 0) v.health = 0;
   }
 
@@ -89,41 +91,45 @@ export function updateVehicles(state: GameState, input: InputIntent, district: D
 }
 
 function drivePlayer(v: VehicleState, input: InputIntent, dt: number): void {
-  const throttle = input.moveZ;
-  const steer = input.moveX;
+  const throttle = clamp(input.moveZ, -1, 1);
   const boost = input.sprint ? BOOST : 0;
   const handbrake = input.jump;
 
-  const fwdX = Math.sin(v.yaw);
-  const fwdZ = Math.cos(v.yaw);
-  const rightX = fwdZ;
-  const rightZ = -fwdX;
+  v.steer = damp(v.steer, clamp(input.moveX, -1, 1), STEER_ALIGN, dt);
 
+  const speedAbs = Math.abs(v.speed);
   if (throttle > 0.05) {
-    const cap = MAX + boost;
-    v.speed = clamp(v.speed + (ACCEL + boost) * throttle * dt, -REVERSE, cap);
+    const headroom = 1 - speedAbs / (MAX_SPEED + boost);
+    v.speed += (ACCEL + boost) * throttle * Math.max(0.25, headroom) * dt;
   } else if (throttle < -0.05) {
-    if (v.speed > 0.4) v.speed = Math.max(-REVERSE, v.speed - BRAKE * dt);
-    else v.speed = clamp(v.speed + REVERSE * throttle * dt, -REVERSE, MAX_BOOST);
+    if (v.speed > 1.2) v.speed -= BRAKE * -throttle * dt;
+    else v.speed += throttle * 18 * dt;
   } else {
-    v.speed *= 1 - DRAG * dt;
+    v.speed -= Math.sign(v.speed) * Math.min(speedAbs, 10 * dt);
   }
 
-  const grip = handbrake ? 0.35 : 1;
-  const steerScale = 1 / (1 + Math.abs(v.speed) * 0.045);
-  v.yaw += steer * STEER * steerScale * Math.sign(v.speed || throttle) * dt * (handbrake ? 1.65 : 1);
-
-  const targetVx = fwdX * v.speed;
-  const targetVz = fwdZ * v.speed;
-  v.vx += (targetVx - v.vx) * Math.min(1, LATERAL * grip * dt);
-  v.vz += (targetVz - v.vz) * Math.min(1, LATERAL * grip * dt);
-
-  const lat = v.vx * rightX + v.vz * rightZ;
-  v.skid = Math.abs(lat) * (handbrake ? 1.8 : 1);
   if (handbrake) {
-    v.vx -= fwdX * v.speed * 0.55 * dt;
-    v.vz -= fwdZ * v.speed * 0.55 * dt;
+    v.speed -= Math.sign(v.speed) * Math.min(speedAbs, 16 * dt);
   }
+
+  v.speed = clamp(v.speed, -MAX_REVERSE, MAX_SPEED + boost);
+  v.speed -= v.speed * DRAG * dt * 0.12;
+
+  const speedFactor = clamp(speedAbs / 12, 0, 1);
+  const hand = handbrake ? 1 : 0;
+  const turnAuth = lerp(0.35, 1, speedFactor) * (1 - speedAbs / ((MAX_SPEED + boost) * 1.6));
+  const turn = v.steer * (2.35 + hand * 2.1) * turnAuth;
+  v.yawRate = damp(v.yawRate, turn * Math.sign(v.speed || 1), 12, dt);
+  v.yaw = wrapAngle(v.yaw + v.yawRate * dt);
+
+  const grip = handbrake ? 3.2 : 11.5;
+  const targetVx = Math.sin(v.yaw) * v.speed;
+  const targetVz = Math.cos(v.yaw) * v.speed;
+  v.vx = damp(v.vx, targetVx, grip, dt);
+  v.vz = damp(v.vz, targetVz, grip, dt);
+
+  const slip = Math.hypot(v.vx - targetVx, v.vz - targetVz);
+  v.skid = damp(v.skid, clamp((slip + hand * speedAbs * 0.25) / 10, 0, 1), 8, dt);
 }
 
 function driveChase(v: VehicleState, state: GameState, dt: number): void {

@@ -51,6 +51,8 @@ export function createGame(district: District, seed = 1992): { state: GameState;
         occupied: false,
         skid: 0,
         stalled: 0,
+        steer: 0,
+        yawRate: 0,
       },
     ],
     peds: [],
@@ -70,16 +72,19 @@ export function createGame(district: District, seed = 1992): { state: GameState;
     },
     camera: {
       yaw: 0,
-      pitch: -0.12,
-      dist: 5.4,
-      height: 1.85,
-      fov: 54,
+      pitch: 0.18,
+      dist: 6.5,
+      height: 2.85,
+      fov: 52,
       x: district.garage.x,
-      y: 4,
-      z: district.garage.z - 8,
+      y: 2.85,
+      z: district.garage.z + 6 - 6.5,
       tx: district.garage.x,
-      ty: 1.4,
+      ty: 1.35,
       tz: district.garage.z + 6,
+      orbitYaw: 0,
+      orbitPitch: 0,
+      lookIdle: 2,
     },
     marker: { x: district.steal.x, z: district.steal.z, visible: true, color: 0xffd23a },
     safe: { x: district.target.x, z: district.target.z, r: 8 },
@@ -98,13 +103,13 @@ export function stepSim(state: GameState, district: District, input: InputIntent
   state.time += dt;
   state.prompt = "";
   tryEnterExit(state, input);
-  updatePlayer(state, input, district, dt);
   updateVehicles(state, input, district, dt);
+  updatePlayer(state, input, district, dt);
   updateCombat(state, input, dt);
   updateNpcs(state, district, dt);
   updateWanted(state, district, dt);
   updateMission(state, district, dt);
-  updateCamera(state, dt);
+  updateCamera(state, input, dt);
 }
 
 export function resetGame(district: District, seed = 1992): { state: GameState; district: District } {

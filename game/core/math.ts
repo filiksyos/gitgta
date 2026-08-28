@@ -21,6 +21,10 @@ export function lerpAngle(a: number, b: number, t: number): number {
   return a + wrapAngle(b - a) * t;
 }
 
+export function dampAngle(current: number, target: number, lambda: number, dt: number): number {
+  return lerpAngle(current, target, 1 - Math.exp(-lambda * dt));
+}
+
 export function length2(x: number, z: number): number {
   return Math.hypot(x, z);
 }
