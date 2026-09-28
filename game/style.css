@@ -325,31 +325,21 @@ html.game-active body {
 
 .look-zone {
   z-index: 1;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 42%;
-}
-
-.move-zone {
-  z-index: 2;
-  left: 0;
-  top: 196px;
-  bottom: 0;
-  width: min(52%, calc(100% - 168px));
+  inset: 0;
 }
 
 .joy-base {
-  pointer-events: none;
+  pointer-events: auto;
   position: absolute;
-  z-index: 3;
-  left: max(16px, env(safe-area-inset-left));
-  bottom: max(16px, env(safe-area-inset-bottom));
-  width: 132px;
-  height: 132px;
+  z-index: 4;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   background: #0006;
   border: 2px solid #fff6;
+  touch-action: none;
 }
 
 .joy-base.is-active {
@@ -445,28 +435,42 @@ button.btn-use {
   font-size: 12px;
 }
 
+#game-root.touch-mode {
+  --joy-size: 124px;
+  --joy-bottom: max(12px, env(safe-area-inset-bottom));
+  --radar-size: 96px;
+  --stack-gap: 22px;
+}
+
+#game-root.touch-mode .joy-base {
+  width: var(--joy-size);
+  height: var(--joy-size);
+  bottom: var(--joy-bottom);
+}
+
 #game-root.touch-mode .radar-wrap {
-  left: max(12px, env(safe-area-inset-left));
-  top: max(78px, calc(env(safe-area-inset-top) + 68px));
-  bottom: auto;
-  width: 104px;
-  height: 104px;
+  left: calc(max(12px, env(safe-area-inset-left)) + (var(--joy-size) - var(--radar-size)) / 2);
+  bottom: calc(var(--joy-bottom) + var(--joy-size) + var(--stack-gap));
+  top: auto;
+  width: var(--radar-size);
+  height: var(--radar-size);
 }
 
 #game-root.touch-mode #hud-radar {
-  width: 104px;
-  height: 104px;
+  width: var(--radar-size);
+  height: var(--radar-size);
 }
 
 #game-root.touch-mode .radar-label {
-  bottom: -13px;
+  top: -14px;
+  bottom: auto;
   font-size: 8px;
   letter-spacing: 0.12em;
 }
 
 #game-root.touch-mode .prompt {
   top: auto;
-  bottom: calc(236px + env(safe-area-inset-bottom));
+  bottom: calc(var(--joy-bottom) + var(--joy-size) + var(--stack-gap) + var(--radar-size) + 28px);
   max-width: min(220px, 54vw);
   padding: 6px 12px;
   font-size: 13px;
@@ -489,13 +493,10 @@ button.btn-use {
 }
 
 @media (max-width: 380px) {
-  .joy-base {
-    width: 112px;
-    height: 112px;
-  }
-
-  .move-zone {
-    width: min(50%, calc(100% - 150px));
+  #game-root.touch-mode {
+    --joy-size: 112px;
+    --radar-size: 84px;
+    --stack-gap: 18px;
   }
 
   .touch-actions {
@@ -514,19 +515,13 @@ button.btn-use {
     height: 46px;
   }
 
-  #game-root.touch-mode .prompt {
-    bottom: calc(214px + env(safe-area-inset-bottom));
-  }
 }
 
 @media (max-height: 520px) {
-  .move-zone {
-    top: 132px;
-  }
-
-  .joy-base {
-    width: 100px;
-    height: 100px;
+  #game-root.touch-mode {
+    --joy-size: 92px;
+    --radar-size: 68px;
+    --stack-gap: 14px;
   }
 
   .touch-actions {
@@ -544,16 +539,6 @@ button.btn-use {
   button.btn-use {
     width: 100%;
     height: 42px;
-  }
-
-  #game-root.touch-mode .radar-wrap,
-  #game-root.touch-mode #hud-radar {
-    width: 76px;
-    height: 76px;
-  }
-
-  #game-root.touch-mode .radar-wrap {
-    top: max(46px, calc(env(safe-area-inset-top) + 40px));
   }
 
   #game-root.touch-mode .objective {

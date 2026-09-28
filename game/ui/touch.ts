@@ -1,6 +1,6 @@
 import type { Input } from "../core/input";
 
-const DEAD = 0.16;
+const DEAD = 0.12;
 
 export function isTouchLayout(): boolean {
   if (typeof window === "undefined") return false;
@@ -54,7 +54,6 @@ export function mountTouch(root: HTMLElement, input: Input): () => void {
     built = true;
     root.innerHTML = `
       <div class="look-zone" id="look"></div>
-      <div class="move-zone" id="move-zone"></div>
       <div class="joy-base" id="joy"><div class="joy-knob" id="knob"></div></div>
       <div class="touch-actions">
         <button type="button" class="btn-touch" id="t-fire" aria-label="Fire">FIRE</button>
@@ -67,76 +66,52 @@ export function mountTouch(root: HTMLElement, input: Input): () => void {
 
     const joy = root.querySelector("#joy") as HTMLElement;
     const knob = root.querySelector("#knob") as HTMLElement;
-    const moveZone = root.querySelector("#move-zone") as HTMLElement;
     const look = root.querySelector("#look") as HTMLElement;
     let stickPointer: number | null = null;
-    let originX = 0;
-    let originY = 0;
 
     const resetStick = (): void => {
       stickPointer = null;
       input.joyX = 0;
       input.joyZ = 0;
       joy.classList.remove("is-active");
-      joy.style.left = "";
-      joy.style.top = "";
-      joy.style.bottom = "";
       knob.style.transform = "translate(-50%, -50%)";
     };
 
-    const placeStick = (clientX: number, clientY: number): void => {
-      const bounds = root.getBoundingClientRect();
-      const size = joy.offsetWidth || 120;
-      const margin = 8;
-      let left = clientX - bounds.left - size / 2;
-      let top = clientY - bounds.top - size / 2;
-      left = Math.min(bounds.width - size - margin, Math.max(margin, left));
-      top = Math.min(bounds.height - size - margin, Math.max(margin, top));
-      joy.style.left = `${left}px`;
-      joy.style.top = `${top}px`;
-      joy.style.bottom = "auto";
-      originX = bounds.left + left + size / 2;
-      originY = bounds.top + top + size / 2;
-    };
-
     const updateStick = (clientX: number, clientY: number): void => {
-      const radius = (joy.offsetWidth || 120) * 0.46;
-      const mapped = mapStick(clientX, clientY, originX, originY, radius);
+      const bounds = joy.getBoundingClientRect();
+      const radius = bounds.width * 0.46;
+      const mapped = mapStick(clientX, clientY, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, radius);
       input.joyX = mapped.x;
       input.joyZ = mapped.z;
       knob.style.transform = `translate(calc(-50% + ${mapped.knobX}px), calc(-50% + ${mapped.knobY}px))`;
     };
 
-    moveZone.addEventListener(
+    // The pad stays put. Window listeners keep the direction held even if the
+    // browser drops pointer capture while the thumb is still down.
+    joy.addEventListener(
       "pointerdown",
       (event) => {
         if (stickPointer !== null) return;
         if (event.pointerType === "mouse" && event.button !== 0) return;
         event.preventDefault();
         stickPointer = event.pointerId;
-        moveZone.setPointerCapture(event.pointerId);
         joy.classList.add("is-active");
-        placeStick(event.clientX, event.clientY);
-        input.joyX = 0;
-        input.joyZ = 0;
-        knob.style.transform = "translate(-50%, -50%)";
-      },
-      { signal },
-    );
-    moveZone.addEventListener(
-      "pointermove",
-      (event) => {
-        if (event.pointerId !== stickPointer) return;
         updateStick(event.clientX, event.clientY);
       },
       { signal },
     );
+    const moveStick = (event: PointerEvent): void => {
+      if (event.pointerId !== stickPointer) return;
+      event.preventDefault();
+      updateStick(event.clientX, event.clientY);
+    };
     const endStick = (event: PointerEvent): void => {
       if (event.pointerId !== stickPointer) return;
       resetStick();
     };
-    moveZone.addEventListener("pointerup", endStick, { signal });
-    moveZone.addEventListener("pointercancel", endStick, { signal });
+    window.addEventListener("pointermove", moveStick, { signal });
+    window.addEventListener("pointerup", endStick, { signal });
+    window.addEventListener("pointercancel", endStick, { signal });
 
     const lookPointers = new Map<number, { x: number; y: number }>();
     look.addEventListener(
