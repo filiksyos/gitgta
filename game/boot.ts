@@ -28,7 +28,7 @@ export function startGame(opts: StartGameOptions): () => void {
   hud.setDistrict(world);
   const screens = new Screens(overlayEl);
   const view = new GameView(canvas);
-  mountTouch(touchEl, input);
+  const unmountTouch = mountTouch(touchEl, input);
 
   const pack = createGame(world, seed);
   let state: GameState = pack.state;
@@ -48,7 +48,7 @@ export function startGame(opts: StartGameOptions): () => void {
     prevStars = 0;
     screens.hide();
     hud.show(true);
-    input.requestLock(canvas);
+    if (!touchEl.classList.contains("touch-on")) input.requestLock(canvas);
   }
 
   screens.loading(world.meta.displayName);
@@ -113,6 +113,7 @@ export function startGame(opts: StartGameOptions): () => void {
 
   return () => {
     loop.stop();
+    unmountTouch();
     input.detach();
     view.dispose();
   };

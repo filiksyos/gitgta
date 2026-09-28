@@ -1,74 +1,212 @@
 import type { Input } from "../core/input";
 
-export function mountTouch(root: HTMLElement, input: Input): void {
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
-  if (!coarse) return;
-  root.classList.remove("hidden");
-  root.innerHTML = `
-    <div class="joy-base" id="joy"><div class="joy-knob" id="knob"></div></div>
-    <button class="btn-touch btn-jump" id="t-jump">JUMP</button>
-    <button class="btn-touch btn-sprint" id="t-sprint">RUN</button>
-    <button class="btn-touch btn-enter" id="t-enter">E</button>
-    <button class="btn-touch btn-punch" id="t-punch">HIT</button>
-    <button class="btn-touch btn-fire" id="t-fire">GUN</button>
-  `;
-  const joy = root.querySelector("#joy") as HTMLElement;
-  const knob = root.querySelector("#knob") as HTMLElement;
-  let active = false;
-  const setJoy = (clientX: number, clientY: number): void => {
-    const r = joy.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    let dx = (clientX - cx) / 52;
-    let dy = (clientY - cy) / 52;
-    const len = Math.hypot(dx, dy);
-    if (len > 1) {
-      dx /= len;
-      dy /= len;
-    }
-    input.joyX = dx;
-    input.joyZ = -dy;
-    knob.style.transform = `translate(${dx * 28}px, ${dy * 28}px)`;
+const DEAD = 0.12;
+
+export function isTouchLayout(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(hover: none)").matches ||
+    window.matchMedia("(max-width: 900px)").matches
+  );
+}
+
+/** Map a finger position to a stick vector. `z` is positive when the finger is above the origin. */
+export function mapStick(
+  clientX: number,
+  clientY: number,
+  originX: number,
+  originY: number,
+  radius: number,
+): { x: number; z: number; knobX: number; knobY: number } {
+  const dx = clientX - originX;
+  const dy = clientY - originY;
+  const len = Math.hypot(dx, dy);
+  const span = Math.max(radius, 1);
+  const clamped = Math.min(1, len / span);
+  const mag = clamped <= DEAD ? 0 : (clamped - DEAD) / (1 - DEAD);
+  const ux = len > 0.0001 ? dx / len : 0;
+  const uy = len > 0.0001 ? dy / len : 0;
+  const travel = span * 0.62;
+  return {
+    x: ux * mag,
+    z: -uy * mag,
+    knobX: ux * clamped * travel,
+    knobY: uy * clamped * travel,
   };
-  joy.addEventListener("pointerdown", (e) => {
-    active = true;
-    joy.setPointerCapture(e.pointerId);
-    setJoy(e.clientX, e.clientY);
-  });
-  joy.addEventListener("pointermove", (e) => {
-    if (active) setJoy(e.clientX, e.clientY);
-  });
-  const end = (): void => {
-    active = false;
+}
+
+export function mountTouch(root: HTMLElement, input: Input): () => void {
+  const gameRoot = root.parentElement;
+  const abort = new AbortController();
+  const signal = abort.signal;
+  let built = false;
+
+  const applyMode = (): void => {
+    const on = isTouchLayout();
+    root.classList.toggle("hidden", !on);
+    root.classList.toggle("touch-on", on);
+    gameRoot?.classList.toggle("touch-mode", on);
+    if (on && !built) build();
+  };
+
+  const build = (): void => {
+    built = true;
+    root.innerHTML = `
+      <div class="look-zone" id="look"></div>
+      <div class="joy-base" id="joy"><div class="joy-knob" id="knob"></div></div>
+      <div class="touch-actions">
+        <button type="button" class="btn-touch" id="t-fire" aria-label="Fire">FIRE</button>
+        <button type="button" class="btn-touch" id="t-jump" aria-label="Jump or handbrake">JUMP</button>
+        <button type="button" class="btn-touch" id="t-punch" aria-label="Punch">HIT</button>
+        <button type="button" class="btn-touch" id="t-sprint" aria-label="Sprint">RUN</button>
+        <button type="button" class="btn-touch btn-use" id="t-enter" aria-label="Enter or exit vehicle">USE</button>
+      </div>
+    `;
+
+    const joy = root.querySelector("#joy") as HTMLElement;
+    const knob = root.querySelector("#knob") as HTMLElement;
+    const look = root.querySelector("#look") as HTMLElement;
+    let stickPointer: number | null = null;
+
+    const resetStick = (): void => {
+      stickPointer = null;
+      input.joyX = 0;
+      input.joyZ = 0;
+      joy.classList.remove("is-active");
+      knob.style.transform = "translate(-50%, -50%)";
+    };
+
+    const updateStick = (clientX: number, clientY: number): void => {
+      const bounds = joy.getBoundingClientRect();
+      const radius = bounds.width * 0.46;
+      const mapped = mapStick(clientX, clientY, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, radius);
+      input.joyX = mapped.x;
+      input.joyZ = mapped.z;
+      knob.style.transform = `translate(calc(-50% + ${mapped.knobX}px), calc(-50% + ${mapped.knobY}px))`;
+    };
+
+    // The pad stays put. Window listeners keep the direction held even if the
+    // browser drops pointer capture while the thumb is still down.
+    joy.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (stickPointer !== null) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        stickPointer = event.pointerId;
+        joy.classList.add("is-active");
+        updateStick(event.clientX, event.clientY);
+      },
+      { signal },
+    );
+    const moveStick = (event: PointerEvent): void => {
+      if (event.pointerId !== stickPointer) return;
+      event.preventDefault();
+      updateStick(event.clientX, event.clientY);
+    };
+    const endStick = (event: PointerEvent): void => {
+      if (event.pointerId !== stickPointer) return;
+      resetStick();
+    };
+    window.addEventListener("pointermove", moveStick, { signal });
+    window.addEventListener("pointerup", endStick, { signal });
+    window.addEventListener("pointercancel", endStick, { signal });
+
+    const lookPointers = new Map<number, { x: number; y: number }>();
+    look.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        look.setPointerCapture(event.pointerId);
+        lookPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      },
+      { signal },
+    );
+    look.addEventListener(
+      "pointermove",
+      (event) => {
+        const prev = lookPointers.get(event.pointerId);
+        if (!prev) return;
+        const dx = event.clientX - prev.x;
+        const dy = event.clientY - prev.y;
+        prev.x = event.clientX;
+        prev.y = event.clientY;
+        // Touch swipes are shorter than a mouse sweep, so scale them up.
+        input.addLook(dx * 3.6, dy * 2.4);
+      },
+      { signal },
+    );
+    const endLook = (event: PointerEvent): void => {
+      lookPointers.delete(event.pointerId);
+    };
+    look.addEventListener("pointerup", endLook, { signal });
+    look.addEventListener("pointercancel", endLook, { signal });
+
+    const hold = (id: string, down: () => void, up?: () => void): void => {
+      const el = root.querySelector(id) as HTMLElement;
+      el.addEventListener(
+        "pointerdown",
+        (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          el.setPointerCapture(event.pointerId);
+          el.classList.add("is-down");
+          down();
+        },
+        { signal },
+      );
+      const release = (): void => {
+        el.classList.remove("is-down");
+        up?.();
+      };
+      el.addEventListener("pointerup", release, { signal });
+      el.addEventListener("pointercancel", release, { signal });
+      el.addEventListener("contextmenu", (event) => event.preventDefault(), { signal });
+    };
+
+    hold("#t-jump", () => {
+      input.touchJump = true;
+      input.queueJump();
+    }, () => {
+      input.touchJump = false;
+    });
+    hold("#t-sprint", () => {
+      input.touchSprint = true;
+    }, () => {
+      input.touchSprint = false;
+    });
+    hold("#t-enter", () => input.queueInteract());
+    hold("#t-punch", () => input.queuePunch());
+    hold("#t-fire", () => input.queueShoot());
+  };
+
+  const onTouchMove = (event: TouchEvent): void => {
+    const overlay = document.getElementById("overlay");
+    if (overlay && !overlay.classList.contains("hidden") && overlay.contains(event.target as Node)) return;
+    if (!root.classList.contains("touch-on")) return;
+    event.preventDefault();
+  };
+  root.addEventListener("touchmove", onTouchMove, { passive: false, signal });
+
+  const medias = [
+    window.matchMedia("(pointer: coarse)"),
+    window.matchMedia("(hover: none)"),
+    window.matchMedia("(max-width: 900px)"),
+  ];
+  for (const media of medias) media.addEventListener("change", applyMode, { signal });
+  applyMode();
+
+  return () => {
+    abort.abort();
     input.joyX = 0;
     input.joyZ = 0;
-    knob.style.transform = "";
+    input.touchSprint = false;
+    input.touchJump = false;
+    root.classList.add("hidden");
+    root.classList.remove("touch-on");
+    root.innerHTML = "";
+    gameRoot?.classList.remove("touch-mode");
   };
-  joy.addEventListener("pointerup", end);
-  joy.addEventListener("pointercancel", end);
-
-  const hold = (id: string, down: () => void, up?: () => void): void => {
-    const el = root.querySelector(id)!;
-    el.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      down();
-    });
-    if (up) {
-      el.addEventListener("pointerup", up);
-      el.addEventListener("pointercancel", up);
-    }
-  };
-  hold("#t-jump", () => input.queueJump());
-  hold(
-    "#t-sprint",
-    () => {
-      input.touchSprint = true;
-    },
-    () => {
-      input.touchSprint = false;
-    },
-  );
-  hold("#t-enter", () => input.queueInteract());
-  hold("#t-punch", () => input.queuePunch());
-  hold("#t-fire", () => input.queueShoot());
 }

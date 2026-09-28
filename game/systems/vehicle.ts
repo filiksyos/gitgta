@@ -93,9 +93,10 @@ export function updateVehicles(state: GameState, input: InputIntent, district: D
 function drivePlayer(v: VehicleState, input: InputIntent, dt: number): void {
   const throttle = clamp(input.moveZ, -1, 1);
   const boost = input.sprint ? BOOST : 0;
-  const handbrake = input.jump;
+  const handbrake = input.handbrake;
+  const steerAxis = clamp(input.moveX + input.stickX, -1, 1);
 
-  v.steer = damp(v.steer, clamp(-input.moveX, -1, 1), STEER_ALIGN, dt);
+  v.steer = damp(v.steer, steerAxis, STEER_ALIGN, dt);
 
   const speedAbs = Math.abs(v.speed);
   if (throttle > 0.05) {

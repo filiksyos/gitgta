@@ -16,12 +16,28 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-#game-root {
-  position: relative;
+html.game-active,
+html.game-active body {
+  position: fixed;
+  inset: 0;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#game-root {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   height: 100dvh;
   overflow: hidden;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  overscroll-behavior: none;
   background: #1a1410;
 }
 
@@ -29,6 +45,11 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
+}
+
+#game-root.touch-mode #game-canvas {
+  pointer-events: none;
 }
 
 #hud {
@@ -47,8 +68,8 @@ body {
 
 .hud-top {
   position: absolute;
-  top: 18px;
-  right: 22px;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(22px, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -92,8 +113,8 @@ body {
 
 .objective {
   position: absolute;
-  top: 18px;
-  left: 22px;
+  top: max(18px, env(safe-area-inset-top));
+  left: max(22px, env(safe-area-inset-left));
   max-width: min(420px, 55vw);
   font-size: 15px;
   font-weight: 600;
@@ -179,9 +200,18 @@ body {
 #overlay {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
   background:
     linear-gradient(180deg, #1c140ecc 0%, #0a0806ee 55%, #120c08f2 100%);
   color: #f6f1e8;
@@ -192,7 +222,9 @@ body {
 }
 
 .panel {
-  width: min(560px, 92vw);
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
   padding: 36px 32px 28px;
   border: 3px solid #f0c14a;
   background: #14100cd9;
@@ -239,7 +271,9 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 12px 28px;
+  min-height: 48px;
   font-size: 14px;
+  touch-action: manipulation;
 }
 
 .panel button:hover {
@@ -250,6 +284,7 @@ body {
   display: inline-block;
   margin-top: 8px;
   padding: 12px 28px;
+  min-height: 48px;
   border: 2px solid #111;
   background: #e23b2e;
   color: #fff;
@@ -258,6 +293,7 @@ body {
   text-transform: uppercase;
   text-decoration: none;
   font-size: 14px;
+  touch-action: manipulation;
 }
 
 .quiet {
@@ -265,57 +301,278 @@ body {
   font-size: 14px;
 }
 
+#hud {
+  z-index: 2;
+}
+
 #touch {
   position: absolute;
   inset: 0;
+  z-index: 3;
   pointer-events: none;
+  touch-action: none;
 }
 
-.joy-base,
-.btn-touch {
+#touch.touch-on {
   pointer-events: auto;
+}
+
+.look-zone,
+.move-zone {
   position: absolute;
+  touch-action: none;
+}
+
+.look-zone {
+  z-index: 1;
+  inset: 0;
 }
 
 .joy-base {
-  left: 28px;
-  bottom: 28px;
-  width: 128px;
-  height: 128px;
+  pointer-events: auto;
+  position: absolute;
+  z-index: 4;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   background: #0006;
   border: 2px solid #fff6;
+  touch-action: none;
+}
+
+.joy-base.is-active {
+  background: #0008;
+  border-color: #fff;
 }
 
 .joy-knob {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 54px;
-  height: 54px;
-  margin: -27px 0 0 -27px;
+  width: 42%;
+  height: 42%;
   border-radius: 50%;
   background: #fffc;
+  transform: translate(-50%, -50%);
+}
+
+.touch-actions {
+  position: absolute;
+  z-index: 4;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 68px 68px;
+  grid-template-rows: 68px 68px 48px;
+  gap: 10px;
+  touch-action: none;
 }
 
 .btn-touch {
-  width: 62px;
-  height: 62px;
+  pointer-events: auto;
+  width: 68px;
+  height: 68px;
+  padding: 0;
   border-radius: 50%;
   border: 2px solid #fff8;
   background: #0007;
   color: #fff;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.04em;
+  touch-action: none;
 }
 
-.btn-jump { right: 28px; bottom: 110px; }
-.btn-sprint { right: 100px; bottom: 36px; }
-.btn-enter { right: 28px; bottom: 36px; }
-.btn-punch { right: 172px; bottom: 36px; }
-.btn-fire { right: 100px; bottom: 110px; }
+.btn-touch.is-down {
+  background: #e23b2ee6;
+  border-color: #fff;
+  transform: scale(0.94);
+}
 
-@media (pointer: fine) {
-  #touch { display: none !important; }
+#t-fire { grid-column: 1; grid-row: 1; }
+#t-jump { grid-column: 2; grid-row: 1; }
+#t-punch { grid-column: 1; grid-row: 2; }
+#t-sprint { grid-column: 2; grid-row: 2; }
+
+button.btn-use {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  height: 48px;
+  justify-self: stretch;
+  border-radius: 24px;
+  letter-spacing: 0.14em;
+}
+
+#game-root.touch-mode .objective {
+  top: max(10px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  right: 148px;
+  max-width: none;
+  max-height: 2.8em;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+#game-root.touch-mode .hud-top {
+  top: max(10px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  gap: 6px;
+}
+
+#game-root.touch-mode .wanted {
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+#game-root.touch-mode .health-wrap {
+  width: 112px;
+}
+
+#game-root.touch-mode .ammo {
+  font-size: 12px;
+}
+
+#game-root.touch-mode {
+  --joy-size: 124px;
+  --joy-bottom: max(12px, env(safe-area-inset-bottom));
+  --radar-size: 96px;
+  --stack-gap: 22px;
+}
+
+#game-root.touch-mode .joy-base {
+  width: var(--joy-size);
+  height: var(--joy-size);
+  bottom: var(--joy-bottom);
+}
+
+#game-root.touch-mode .radar-wrap {
+  left: calc(max(12px, env(safe-area-inset-left)) + (var(--joy-size) - var(--radar-size)) / 2);
+  bottom: calc(var(--joy-bottom) + var(--joy-size) + var(--stack-gap));
+  top: auto;
+  width: var(--radar-size);
+  height: var(--radar-size);
+}
+
+#game-root.touch-mode #hud-radar {
+  width: var(--radar-size);
+  height: var(--radar-size);
+}
+
+#game-root.touch-mode .radar-label {
+  top: -14px;
+  bottom: auto;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+#game-root.touch-mode .prompt {
+  top: auto;
+  bottom: calc(var(--joy-bottom) + var(--joy-size) + var(--stack-gap) + var(--radar-size) + 28px);
+  max-width: min(220px, 54vw);
+  padding: 6px 12px;
+  font-size: 13px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+#game-root.touch-mode .speedo {
+  top: max(76px, calc(env(safe-area-inset-top) + 68px));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: auto;
+  left: auto;
+  font-size: 22px;
+  padding: 2px 8px;
+  background: #0008;
+}
+
+#game-root.touch-mode .crosshair {
+  top: 42%;
+}
+
+@media (max-width: 380px) {
+  #game-root.touch-mode {
+    --joy-size: 112px;
+    --radar-size: 84px;
+    --stack-gap: 18px;
+  }
+
+  .touch-actions {
+    grid-template-columns: 60px 60px;
+    grid-template-rows: 60px 60px 46px;
+    gap: 8px;
+  }
+
+  .btn-touch {
+    width: 60px;
+    height: 60px;
+  }
+
+  button.btn-use {
+    width: 100%;
+    height: 46px;
+  }
+
+}
+
+@media (max-height: 520px) {
+  #game-root.touch-mode {
+    --joy-size: 92px;
+    --radar-size: 68px;
+    --stack-gap: 14px;
+  }
+
+  .touch-actions {
+    grid-template-columns: 54px 54px;
+    grid-template-rows: 54px 54px 42px;
+    gap: 7px;
+  }
+
+  .btn-touch {
+    width: 54px;
+    height: 54px;
+    font-size: 10px;
+  }
+
+  button.btn-use {
+    width: 100%;
+    height: 42px;
+  }
+
+  #game-root.touch-mode .objective {
+    font-size: 12px;
+    right: 168px;
+  }
+
+  #game-root.touch-mode .prompt {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: auto;
+  }
+
+  .panel {
+    padding: 18px 14px 14px;
+  }
+
+  .panel h1 {
+    font-size: 28px;
+  }
+
+  .panel p,
+  .panel .controls {
+    margin: 10px auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 22px 16px 18px;
+    box-shadow: 4px 4px 0 #0008;
+  }
+
+  .panel .controls {
+    font-size: 12px;
+    line-height: 1.55;
+  }
 }

@@ -1,3 +1,5 @@
+import { isTouchLayout } from "./touch";
+
 export class Screens {
   constructor(private root: HTMLElement) {}
 
@@ -14,17 +16,25 @@ export class Screens {
     const quiet = opts?.quiet
       ? `<p class="quiet">Quiet town — not much skyline yet. Cruise it anyway.</p>`
       : "";
+    const controls = isTouchLayout()
+      ? `<div class="controls">
+          <div><b>Stick</b> up walks · sideways turns · full tilt sprints</div>
+          <div><b>Drag</b> the right side to look around</div>
+          <div><b>RUN</b> sprint / boost · <b>JUMP</b> jump / handbrake</div>
+          <div><b>USE</b> enter / exit · <b>HIT</b> punch · <b>FIRE</b> pistol</div>
+        </div>`
+      : `<div class="controls">
+          <div><b>WASD</b> walk / drive · <b>Shift</b> sprint / boost</div>
+          <div><b>Space</b> jump / handbrake · <b>E</b> enter / exit</div>
+          <div><b>Mouse</b> look · <b>LMB</b> punch · <b>RMB</b> pistol</div>
+        </div>`;
     this.root.innerHTML = `
       <div class="panel">
         <div class="tag">${tag}</div>
         <h1>${title}</h1>
         <p>${blurb}</p>
         ${quiet}
-        <div class="controls">
-          <div><b>WASD</b> walk / drive · <b>Shift</b> sprint / boost</div>
-          <div><b>Space</b> jump / handbrake · <b>E</b> enter / exit</div>
-          <div><b>Mouse</b> look · <b>LMB</b> punch · <b>RMB</b> pistol</div>
-        </div>
+        ${controls}
         <button type="button" id="btn-start">Start exploring</button>
       </div>
     `;

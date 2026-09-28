@@ -26,6 +26,8 @@ export function GameCanvas({ owner, repo }: GameCanvasProps) {
     const screens = new Screens(overlay)
     screens.loading(owner)
 
+    document.documentElement.classList.add('game-active')
+
     let cancelled = false
     let stop: (() => void) | undefined
 
@@ -59,6 +61,7 @@ export function GameCanvas({ owner, repo }: GameCanvasProps) {
     return () => {
       cancelled = true
       stop?.()
+      document.documentElement.classList.remove('game-active')
     }
   }, [owner, repo])
 
