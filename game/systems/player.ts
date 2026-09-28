@@ -9,6 +9,11 @@ const GRAVITY = 26;
 const JUMP = 8.2;
 const RADIUS = 0.42;
 
+function touchControlsActive(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.getElementById("game-root")?.classList.contains("touch-mode") ?? false;
+}
+
 export function updatePlayer(state: GameState, input: InputIntent, district: District, dt: number): void {
   const p = state.player;
   if (p.dead) {
@@ -37,13 +42,18 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
     return;
   }
 
-  p.yaw = wrapAngle(p.yaw - input.lookDx * 0.0022);
+  // Positive look and stick values face screen-right. Yaw 0 looks down +Z,
+  // and the camera sits behind the player, so +X is the right side of the view.
+  p.yaw = wrapAngle(p.yaw + input.lookDx * 0.0022);
+  if (input.stickX !== 0) {
+    p.yaw = wrapAngle(p.yaw + input.stickX * 2.15 * dt);
+  }
 
   const yaw = p.yaw;
   const fx = Math.sin(yaw);
   const fz = Math.cos(yaw);
-  const rx = -Math.cos(yaw);
-  const rz = Math.sin(yaw);
+  const rx = Math.cos(yaw);
+  const rz = -Math.sin(yaw);
   const wishX = fx * input.moveZ + rx * input.moveX;
   const wishZ = fz * input.moveZ + rz * input.moveX;
   const wishLen = Math.hypot(wishX, wishZ);
@@ -110,7 +120,8 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
   for (const v of state.vehicles) {
     if (v.occupied) continue;
     if (dist2(p.x, p.z, v.x, v.z) < 4.2) {
-      state.prompt = v.hero ? "E  Steal ride" : "E  Enter vehicle";
+      const interact = touchControlsActive() ? "USE" : "E";
+      state.prompt = v.hero ? `${interact}  Steal ride` : `${interact}  Enter vehicle`;
     }
   }
 }

@@ -15,6 +15,7 @@ export class Input {
   joyX = 0;
   joyZ = 0;
   touchSprint = false;
+  touchJump = false;
 
   private canvas: HTMLCanvasElement | null = null;
 
@@ -50,7 +51,8 @@ export class Input {
     if (k.has("keys") || k.has("arrowdown")) z -= 1;
     if (k.has("keya") || k.has("arrowleft")) x -= 1;
     if (k.has("keyd") || k.has("arrowright")) x += 1;
-    x += this.joyX;
+    // Stick forward stacks with the keyboard. Stick sideways is analog steer,
+    // applied by the player and vehicle so it does not strafe on foot.
     z += this.joyZ;
     const len = Math.hypot(x, z);
     if (len > 1) {
@@ -58,10 +60,15 @@ export class Input {
       z /= len;
     }
 
+    const stickMag = Math.hypot(this.joyX, this.joyZ);
+    const stickSprint = stickMag > 0.88 && this.joyZ > 0.55;
     this.intent.moveX = clamp(x, -1, 1);
     this.intent.moveZ = clamp(z, -1, 1);
-    this.intent.sprint = k.has("shiftleft") || k.has("shiftright") || this.touchSprint;
+    this.intent.stickX = this.joyX;
+    this.intent.stickZ = this.joyZ;
+    this.intent.sprint = k.has("shiftleft") || k.has("shiftright") || this.touchSprint || stickSprint;
     this.intent.jump = this.jumpQueued || k.has("space");
+    this.intent.handbrake = k.has("space") || this.touchJump;
     const interactDown = this.interactQueued || k.has("keye");
     this.intent.interact = interactDown && !this.prevInteract;
     this.prevInteract = interactDown;
@@ -93,6 +100,11 @@ export class Input {
 
   queueJump(): void {
     this.jumpQueued = true;
+  }
+
+  addLook(dx: number, dy: number): void {
+    this.lookX += dx;
+    this.lookY += dy;
   }
 
   requestLock(canvas: HTMLCanvasElement): void {

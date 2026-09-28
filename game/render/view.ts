@@ -24,13 +24,17 @@ export class GameView {
   private camRay = new THREE.Raycaster();
   private camFrom = new THREE.Vector3();
   private camDir = new THREE.Vector3();
+  private host: HTMLElement;
+  private resizeObserver: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement) {
     const coarse = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 820;
     this.quality = coarse ? "low" : "high";
+    this.host = canvas.parentElement ?? document.body;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !coarse, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.25 : 1.75));
-    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    const dprCap = coarse ? (window.devicePixelRatio > 2 ? 1.05 : 1.2) : 1.75;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+    this.renderer.setSize(this.host.clientWidth || window.innerWidth, this.host.clientHeight || window.innerHeight, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.18;
@@ -65,7 +69,11 @@ export class GameView {
       this.scene.add(l);
     }
 
-    window.addEventListener("resize", this.onResize);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(this.host);
+    window.visualViewport?.addEventListener("resize", this.resize);
+    window.addEventListener("resize", this.resize);
+    this.resize();
   }
 
   async boot(district: District): Promise<void> {
@@ -128,7 +136,9 @@ export class GameView {
   }
 
   dispose(): void {
-    window.removeEventListener("resize", this.onResize);
+    this.resizeObserver.disconnect();
+    window.visualViewport?.removeEventListener("resize", this.resize);
+    window.removeEventListener("resize", this.resize);
     this.renderer.dispose();
   }
 
@@ -204,8 +214,12 @@ export class GameView {
 
   private syncCamera(state: GameState): void {
     const c = state.camera;
-    this.camera.fov = c.fov;
-    this.camera.aspect = window.innerWidth / Math.max(1, window.innerHeight);
+    const w = Math.max(1, this.host.clientWidth);
+    const h = Math.max(1, this.host.clientHeight);
+    const aspect = w / h;
+    const portraitBoost = aspect < 0.85 ? 8 : aspect < 1.1 ? 3 : 0;
+    this.camera.fov = c.fov + portraitBoost;
+    this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
     const s = state.shake;
     this.clockShake.set((Math.random() - 0.5) * s, (Math.random() - 0.5) * s * 0.4, (Math.random() - 0.5) * s);
@@ -231,9 +245,14 @@ export class GameView {
     this.camera.lookAt(c.tx, c.ty, c.tz);
   }
 
-  private onResize = (): void => {
-    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-    this.camera.aspect = window.innerWidth / Math.max(1, window.innerHeight);
+  private resize = (): void => {
+    const w = Math.max(1, this.host.clientWidth);
+    const h = Math.max(1, this.host.clientHeight);
+    const coarse = this.quality === "low";
+    const dprCap = coarse ? ((window.devicePixelRatio || 1) > 2 ? 1.05 : 1.2) : 1.75;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   };
 }

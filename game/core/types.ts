@@ -168,8 +168,14 @@ export interface GameState {
 export interface InputIntent {
   moveX: number;
   moveZ: number;
+  /** Horizontal joystick deflection, -1..1. Steers on foot and in a car. */
+  stickX: number;
+  /** Vertical joystick deflection, -1..1. Positive walks / drives forward. */
+  stickZ: number;
   sprint: boolean;
   jump: boolean;
+  /** Held jump control. Handbrake while driving. */
+  handbrake: boolean;
   interact: boolean;
   punch: boolean;
   shoot: boolean;
@@ -182,8 +188,11 @@ export function emptyIntent(): InputIntent {
   return {
     moveX: 0,
     moveZ: 0,
+    stickX: 0,
+    stickZ: 0,
     sprint: false,
     jump: false,
+    handbrake: false,
     interact: false,
     punch: false,
     shoot: false,
