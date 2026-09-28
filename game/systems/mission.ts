@@ -54,7 +54,9 @@ export function updateMission(state: GameState, district: District, dt: number):
 
   if (m.beat === "steal") {
     m.objective = "Jack the car";
-    m.hint = "Press E next to the vehicle";
+    const touch =
+      typeof document !== "undefined" && document.getElementById("game-root")?.classList.contains("touch-mode");
+    m.hint = touch ? "Tap USE next to the vehicle" : "Press E next to the vehicle";
     state.marker.x = district.steal.x;
     state.marker.z = district.steal.z;
     state.marker.visible = true;

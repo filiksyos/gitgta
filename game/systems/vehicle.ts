@@ -94,7 +94,7 @@ function drivePlayer(v: VehicleState, input: InputIntent, dt: number): void {
   const throttle = clamp(input.moveZ, -1, 1);
   const boost = input.sprint ? BOOST : 0;
   const handbrake = input.handbrake;
-  const steerAxis = clamp(input.moveX + input.stickX, -1, 1);
+  const steerAxis = clamp(-(input.moveX + input.stickX), -1, 1);
 
   v.steer = damp(v.steer, steerAxis, STEER_ALIGN, dt);
 
