@@ -42,18 +42,18 @@ export function updatePlayer(state: GameState, input: InputIntent, district: Dis
     return;
   }
 
-  // Positive look and stick values face screen-right. Yaw 0 looks down +Z,
-  // and the camera sits behind the player, so +X is the right side of the view.
-  p.yaw = wrapAngle(p.yaw + input.lookDx * 0.0022);
+  // Yaw 0 faces +Z. The camera sits behind the player, so screen-right is world -X.
+  // Positive look and stick values decrease yaw and turn toward that side.
+  p.yaw = wrapAngle(p.yaw - input.lookDx * 0.0022);
   if (input.stickX !== 0) {
-    p.yaw = wrapAngle(p.yaw + input.stickX * 2.15 * dt);
+    p.yaw = wrapAngle(p.yaw - input.stickX * 2.15 * dt);
   }
 
   const yaw = p.yaw;
   const fx = Math.sin(yaw);
   const fz = Math.cos(yaw);
-  const rx = Math.cos(yaw);
-  const rz = -Math.sin(yaw);
+  const rx = -Math.cos(yaw);
+  const rz = Math.sin(yaw);
   const wishX = fx * input.moveZ + rx * input.moveX;
   const wishZ = fz * input.moveZ + rz * input.moveX;
   const wishLen = Math.hypot(wishX, wishZ);

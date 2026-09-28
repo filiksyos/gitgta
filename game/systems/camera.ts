@@ -11,8 +11,8 @@ export function updateCamera(state: GameState, input: InputIntent, dt: number): 
 
   if (Math.abs(input.lookDx) > 0.01 || Math.abs(input.lookDy) > 0.01) {
     cam.lookIdle = 0;
-    if (driving) cam.orbitYaw += input.lookDx * 0.0022;
-    cam.orbitPitch = clamp(cam.orbitPitch + input.lookDy * 0.0016, -0.35, 0.45);
+    if (driving) cam.orbitYaw -= input.lookDx * 0.0022;
+    cam.orbitPitch = clamp(cam.orbitPitch - input.lookDy * 0.0016, -0.35, 0.45);
   } else {
     cam.lookIdle += dt;
   }
