@@ -11,6 +11,10 @@ const LOOP = new Set<string>([
   "Jump_Loop",
   "Driving_Loop",
   "Pistol_Idle_Loop",
+  "Talk_Loop",
+  "Idle",
+  "Walk",
+  "Run",
 ]);
 
 export class HeroClips {
@@ -18,6 +22,7 @@ export class HeroClips {
   readonly mixer: THREE.AnimationMixer;
   private actions = new Map<string, THREE.AnimationAction>();
   current = "";
+  private fading: { action: THREE.AnimationAction; remaining: number }[] = [];
 
   constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
     this.root = root;
@@ -30,23 +35,55 @@ export class HeroClips {
         action.clampWhenFinished = true;
       }
       this.actions.set(clip.name, action);
+      // Keep the original asset's authored clips intact; expose game-state aliases.
+      const aliases: Record<string, string[]> = {
+        Idle: ["Idle_Loop"], Walk: ["Walk_Loop"], Run: ["Jog_Fwd_Loop", "Sprint_Loop"],
+      };
+      for (const alias of aliases[clip.name] ?? []) this.actions.set(alias, action);
     }
     this.play("Idle_Loop", 0);
   }
 
   play(name: AnimName | string, fade = 0.16): void {
-    if (name === this.current) return;
-    const next = this.actions.get(name) ?? this.actions.get("Idle_Loop");
+    const resolved = this.actions.has(name) ? name : "Idle_Loop";
+    if (resolved === this.current) return;
+    const next = this.actions.get(resolved);
     if (!next) return;
-    next.reset().play();
+    this.fading = this.fading.filter((entry) => entry.action !== next);
+    next.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).play();
     const prev = this.actions.get(this.current);
-    if (prev && fade > 0) prev.crossFadeTo(next, fade, false);
-    else next.fadeIn(Math.max(fade, 0.01));
-    this.current = name;
+    if (prev && prev !== next) {
+      if (fade > 0) { prev.crossFadeTo(next, fade, false); this.fading.push({ action: prev, remaining: fade }); }
+      else prev.stop();
+    }
+    this.current = resolved;
   }
 
   update(dt: number): void {
     this.mixer.update(dt);
+    this.fading = this.fading.filter((entry) => {
+      entry.remaining -= dt;
+      if (entry.remaining > 0) return true;
+      entry.action.stop();
+      return false;
+    });
+  }
+
+  setSpeed(rate: number): void {
+    this.actions.get(this.current)?.setEffectiveTimeScale(THREE.MathUtils.clamp(rate, 0.1, 2.5));
+  }
+
+  setTalking(amount: number): void {
+    this.root.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      const index = mesh.morphTargetDictionary?.speech;
+      if (index !== undefined && mesh.morphTargetInfluences) mesh.morphTargetInfluences[index] = amount;
+    });
+  }
+
+  dispose(): void {
+    this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.root);
   }
 
   has(name: string): boolean {
@@ -59,10 +96,14 @@ export interface LoadedHeroes {
   playerClips: HeroClips;
   copProto: THREE.Object3D;
   copClips: THREE.AnimationClip[];
+  civilians: { root: THREE.Object3D; clips: THREE.AnimationClip[] }[];
   car: THREE.Object3D;
   copCar: THREE.Object3D;
   trafficPool: THREE.Object3D[];
 }
+
+// Only individually reviewed characters belong in the ambient pool.
+export const CIVILIAN_NAMES = ["nightlife", "floral", "weathered"] as const;
 
 const HERO_CAR_URL = "/models/cars/sedan-sports.glb";
 const COP_CAR_URL = "/models/cars/police.glb";
@@ -152,50 +193,18 @@ function prepareKenneyCar(obj: THREE.Object3D, targetLength = CAR_LENGTH): void 
   });
 }
 
-function remapClips(clips: THREE.AnimationClip[]): void {
-  const aliases: Record<string, string> = {
-    Idle: "Idle_Loop",
-    idle: "Idle_Loop",
-    Walk: "Walk_Loop",
-    walk: "Walk_Loop",
-    Run: "Sprint_Loop",
-    run: "Sprint_Loop",
-    Jog: "Jog_Fwd_Loop",
-    Jump: "Jump_Loop",
-    Death: "Death01",
-    Punch: "Punch_Jab",
-    Shoot: "Pistol_Shoot",
-  };
-  for (const clip of clips) {
-    const mapped = aliases[clip.name];
-    if (mapped) clip.name = mapped;
-  }
-  const names = new Set(clips.map((c) => c.name));
-  const idle = clips.find((c) => c.name === "Idle_Loop");
-  const walk = clips.find((c) => c.name === "Walk_Loop");
-  const run = clips.find((c) => c.name === "Sprint_Loop");
-  const source = run ?? walk ?? idle;
-  if (source && !names.has("Jog_Fwd_Loop")) {
-    const jog = source.clone();
-    jog.name = "Jog_Fwd_Loop";
-    clips.push(jog);
-  }
-  if (idle && !names.has("Jump_Loop")) {
-    const jump = idle.clone();
-    jump.name = "Jump_Loop";
-    clips.push(jump);
-  }
-}
-
 export async function loadHeroes(): Promise<LoadedHeroes> {
   const loader = new GLTFLoader();
-  const [playerGltf, heroCarGltf, copCarGltf, ...trafficGltfs] = await Promise.all([
-    loader.loadAsync("/models/player.glb"),
+  const [playerGltf, heroCarGltf, copCarGltf, ...rest] = await Promise.all([
+    loader.loadAsync("/models/characters/tommy-original-rig.glb"),
     loader.loadAsync(HERO_CAR_URL),
     loader.loadAsync(COP_CAR_URL),
     ...TRAFFIC_CAR_URLS.map((url) => loader.loadAsync(url)),
+    ...CIVILIAN_NAMES.map((name) => loader.loadAsync(`/models/characters/${name}.glb`)),
   ]);
-  remapClips(playerGltf.animations);
+  const trafficGltfs = rest.slice(0, TRAFFIC_CAR_URLS.length);
+  const civilianGltfs = rest.slice(TRAFFIC_CAR_URLS.length);
+
 
   const player = playerGltf.scene;
   player.traverse((c) => {
@@ -214,7 +223,7 @@ export async function loadHeroes(): Promise<LoadedHeroes> {
   enableShadows(player);
   const playerClips = new HeroClips(player, playerGltf.animations);
 
-  const copProto = cloneSkinned(playerGltf.scene);
+  const copProto = cloneSkinned(civilianGltfs[civilianGltfs.length - 1].scene);
   groundAndScale(copProto, 1.82);
   centerXz(copProto);
   tintCop(copProto);
@@ -233,7 +242,8 @@ export async function loadHeroes(): Promise<LoadedHeroes> {
     player,
     playerClips,
     copProto,
-    copClips: playerGltf.animations,
+    copClips: civilianGltfs[civilianGltfs.length - 1].animations,
+    civilians: civilianGltfs.map((gltf) => { enableShadows(gltf.scene); return { root: gltf.scene, clips: gltf.animations }; }),
     car,
     copCar,
     trafficPool,

@@ -576,3 +576,22 @@ button.btn-use {
     line-height: 1.55;
   }
 }
+
+.dialogue-subtitle {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  max-width: min(560px, 84vw);
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: #1d1028e8;
+  color: #ffe0f2;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+}
+.dialogue-subtitle:empty { display: none; }
+#game-root.touch-mode .dialogue-subtitle { bottom: max(260px, 36dvh); font-size: 12px; }

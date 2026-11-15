@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local character processing tools and QA captures
+.tools/
+artifacts/
+scripts/__pycache__/
