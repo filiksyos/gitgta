@@ -12,7 +12,7 @@ body {
   margin: 0;
   width: 100%;
   min-height: 100%;
-  background: #120c14;
+  background: #150e21;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -38,7 +38,7 @@ html.game-active body {
   -webkit-touch-callout: none;
   touch-action: none;
   overscroll-behavior: none;
-  background: #1a1410;
+  background: #1d1028;
 }
 
 #game-canvas {
@@ -89,7 +89,7 @@ html.game-active body {
 }
 
 .star.on {
-  color: #ffd23a;
+  color: #f59bd3;
 }
 
 .health-wrap {
@@ -135,7 +135,7 @@ html.game-active body {
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 16px;
-  border: 2px solid #ffd23a;
+  border: 2px solid #f59bd3;
   background: #000c;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -154,7 +154,7 @@ html.game-active body {
   width: 168px;
   height: 168px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px #f0c14a, 4px 6px 0 #0008;
+  box-shadow: 0 0 0 2px #f2a0d4, 4px 6px 0 #0008;
   background: #010409;
 }
 
@@ -167,7 +167,7 @@ html.game-active body {
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.22em;
-  color: #39d353;
+  color: #c59bff;
 }
 
 .speedo {
@@ -213,8 +213,8 @@ html.game-active body {
     max(16px, env(safe-area-inset-bottom))
     max(12px, env(safe-area-inset-left));
   background:
-    linear-gradient(180deg, #1c140ecc 0%, #0a0806ee 55%, #120c08f2 100%);
-  color: #f6f1e8;
+    radial-gradient(ellipse at 50% 35%, #66346699, transparent 65%), linear-gradient(160deg, #291437, #180e27 55%, #321931);
+  color: #fff0ed;
 }
 
 #overlay.hidden {
@@ -226,10 +226,10 @@ html.game-active body {
   max-height: 100%;
   overflow: auto;
   padding: 36px 32px 28px;
-  border: 3px solid #f0c14a;
-  background: #14100cd9;
+  border: 1px solid #f2a0d455;
+  background: #211329d9;
   text-align: center;
-  box-shadow: 8px 8px 0 #0008;
+  border-radius: 16px; box-shadow: 0 24px 90px #0e061b80;
 }
 
 .panel h1 {
@@ -240,7 +240,7 @@ html.game-active body {
 }
 
 .panel .tag {
-  color: #f0c14a;
+  color: #f2a0d4;
   font-weight: 700;
   letter-spacing: 0.28em;
   font-size: 12px;
@@ -250,7 +250,7 @@ html.game-active body {
 .panel p {
   margin: 16px 0;
   line-height: 1.5;
-  color: #ddd4c6;
+  color: #dec7e0;
 }
 
 .panel .controls {
@@ -259,13 +259,13 @@ html.game-active body {
   line-height: 1.7;
   margin: 18px auto;
   max-width: 420px;
-  color: #cfc6b8;
+  color: #cbb3d3;
 }
 
 .panel button {
   cursor: pointer;
   border: 2px solid #111;
-  background: #e23b2e;
+  background: #ed95d4;
   color: #fff;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -277,7 +277,7 @@ html.game-active body {
 }
 
 .panel button:hover {
-  background: #ff4d3d;
+  background: #ffc8e4;
 }
 
 .panel-link {
@@ -286,7 +286,7 @@ html.game-active body {
   padding: 12px 28px;
   min-height: 48px;
   border: 2px solid #111;
-  background: #e23b2e;
+  background: #ed95d4;
   color: #fff;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -297,7 +297,7 @@ html.game-active body {
 }
 
 .quiet {
-  color: #f0c14a !important;
+  color: #f2a0d4 !important;
   font-size: 14px;
 }
 
@@ -386,7 +386,7 @@ html.game-active body {
 }
 
 .btn-touch.is-down {
-  background: #e23b2ee6;
+  background: #ed95d4e6;
   border-color: #fff;
   transform: scale(0.94);
 }

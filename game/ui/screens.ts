@@ -1,53 +1,13 @@
-import { isTouchLayout } from "./touch";
-
 export class Screens {
   constructor(private root: HTMLElement) {}
 
-  title(
-    onStart: () => void,
-    opts?: { tag?: string; title?: string; blurb?: string; quiet?: boolean },
-  ): void {
-    this.root.classList.remove("hidden");
-    const tag = opts?.tag ?? "GitHub · Open world";
-    const title = opts?.title ?? "GitGTA";
-    const blurb =
-      opts?.blurb ??
-      "Jack a ride, shake the heat, and drive to the tower your commits built.";
-    const quiet = opts?.quiet
-      ? `<p class="quiet">Quiet town — not much skyline yet. Cruise it anyway.</p>`
-      : "";
-    const controls = isTouchLayout()
-      ? `<div class="controls">
-          <div><b>Stick</b> up walks · sideways turns · full tilt sprints</div>
-          <div><b>Drag</b> the right side to look around</div>
-          <div><b>RUN</b> sprint / boost · <b>JUMP</b> jump / handbrake</div>
-          <div><b>USE</b> enter / exit · <b>HIT</b> punch · <b>FIRE</b> pistol</div>
-        </div>`
-      : `<div class="controls">
-          <div><b>WASD</b> walk / drive · <b>Shift</b> sprint / boost</div>
-          <div><b>Space</b> jump / handbrake · <b>E</b> enter / exit</div>
-          <div><b>Mouse</b> look · <b>LMB</b> punch · <b>RMB</b> pistol</div>
-        </div>`;
-    this.root.innerHTML = `
-      <div class="panel">
-        <div class="tag">${tag}</div>
-        <h1>${title}</h1>
-        <p>${blurb}</p>
-        ${quiet}
-        ${controls}
-        <button type="button" id="btn-start">Start exploring</button>
-      </div>
-    `;
-    this.root.querySelector("#btn-start")!.addEventListener("click", onStart);
-  }
-
-  loading(name?: string): void {
+  loading(): void {
     this.root.classList.remove("hidden");
     this.root.innerHTML = `
       <div class="panel">
-        <div class="tag">Loading city</div>
-        <h1>GitGTA</h1>
-        <p>${name ? `Raising ${name}'s skyline…` : "Pulling the commit graph and the block…"}</p>
+        <div class="tag">Entering Vice City</div>
+        <h1>GTA VI For Devs</h1>
+        <p>Getting your ride ready...</p>
       </div>
     `;
   }

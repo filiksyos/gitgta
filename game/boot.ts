@@ -39,7 +39,6 @@ export function startGame(opts: StartGameOptions): () => void {
   let ended = false;
 
   function beginPlay(): void {
-    audio.resume();
     view.resetDynamics();
     const next = resetGame(world, seed);
     state = next.state;
@@ -48,20 +47,26 @@ export function startGame(opts: StartGameOptions): () => void {
     prevStars = 0;
     screens.hide();
     hud.show(true);
-    if (!touchEl.classList.contains("touch-on")) input.requestLock(canvas);
   }
 
-  screens.loading(world.meta.displayName);
+  let disposed = false;
+  const enableAudio = () => {
+    audio.resume();
+    touchEl.removeEventListener("pointerdown", enableAudio)
+    canvas.removeEventListener("pointerdown", enableAudio);
+    window.removeEventListener("keydown", enableAudio);
+  };
+  touchEl.addEventListener("pointerdown", enableAudio);
+  canvas.addEventListener("pointerdown", enableAudio);
+  window.addEventListener("keydown", enableAudio);
+
+  screens.loading();
 
   view.boot(district).then(() => {
-    screens.title(beginPlay, {
-      tag: `${world.meta.login} · commit skyline`,
-      title: "GitGTA",
-      blurb: `Jack a ride through ${world.meta.displayName}'s city. The taller the tower, the harder they shipped.`,
-      quiet: world.meta.quiet,
-    });
+    if (!disposed) beginPlay();
   }).catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : "Could not boot the district.";
+    if (disposed) return;
+    const message = error instanceof Error ? error.message : "Could not enter Vice City.";
     screens.error(message);
   });
 
@@ -112,6 +117,10 @@ export function startGame(opts: StartGameOptions): () => void {
   loop.start();
 
   return () => {
+    disposed = true;
+    touchEl.removeEventListener("pointerdown", enableAudio)
+    canvas.removeEventListener("pointerdown", enableAudio);
+    window.removeEventListener("keydown", enableAudio);
     loop.stop();
     unmountTouch();
     input.detach();

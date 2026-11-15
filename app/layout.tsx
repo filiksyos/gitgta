@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GitGTA",
   description: "Turn any GitHub profile into a GTA city you can drive.",
+  icons: { icon: '/vi.svg', apple: '/vi.svg' },
 };
 
 export const viewport: Viewport = {
