@@ -24,7 +24,7 @@ export function GameCanvas({ owner, repo }: GameCanvasProps) {
     if (!canvas || !hud || !overlay || !touch) return
 
     const screens = new Screens(overlay)
-    screens.loading(owner)
+    screens.loading()
 
     document.documentElement.classList.add('game-active')
 
@@ -39,7 +39,7 @@ export function GameCanvas({ owner, repo }: GameCanvasProps) {
         }
         if (cancelled) return
         if (!response.ok) {
-          screens.error(body.error || 'Could not raise this skyline.', '/')
+          screens.error(body.error || 'Could not enter Vice City.', '/')
           return
         }
         const [{ buildDistrictFromGitHub }, { startGame }] = await Promise.all([
