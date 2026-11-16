@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { GameState, PedState, VehicleState } from "../core/types";
 import type { District } from "../world/district";
-import { buildCity, makeMarker, makePedPrimitive } from "./city";
+import { buildCity, makeMarker } from "./city";
 import { HeroClips, loadHeroes, type LoadedHeroes } from "./heroes";
 
 export class GameView {
@@ -12,8 +12,11 @@ export class GameView {
   readonly quality: "high" | "low";
   private heroes!: LoadedHeroes;
   private playerWrap = new THREE.Group();
+  private playerVisual = new THREE.Group();
+  private footSamples: { mesh: THREE.SkinnedMesh; vertices: number[] }[] = [];
+  private footVertex = new THREE.Vector3();
   private carWraps = new Map<number, THREE.Object3D>();
-  private pedWraps = new Map<number, { obj: THREE.Object3D; clips?: HeroClips; cop: boolean }>();
+  private pedWraps = new Map<number, { obj: THREE.Object3D; clips: HeroClips; cop: boolean; x: number; z: number }>();
   private marker = makeMarker();
   private sun!: THREE.DirectionalLight;
   private lamps: THREE.PointLight[] = [];
@@ -79,7 +82,25 @@ export class GameView {
   async boot(district: District): Promise<void> {
     this.cityRoot = buildCity(this.scene, district, this.quality);
     this.heroes = await loadHeroes();
-    this.playerWrap.add(this.heroes.player);
+    this.playerVisual.add(this.heroes.player);
+    this.playerWrap.add(this.playerVisual);
+    this.heroes.player.traverse((object) => {
+      const mesh = object as THREE.SkinnedMesh;
+      if (!mesh.isSkinnedMesh) return;
+      const joints = mesh.geometry.getAttribute("skinIndex");
+      const weights = mesh.geometry.getAttribute("skinWeight");
+      const vertices: number[] = [];
+      for (let i = 0; i < joints.count; i++) {
+        let footWeight = 0;
+        for (let k = 0; k < 4; k++) {
+          const bone = mesh.skeleton.bones[joints.getComponent(i, k)];
+          if (bone && /Foot|Toe/.test(bone.name)) footWeight += weights.getComponent(i, k);
+        }
+        if (footWeight > 0.5) vertices.push(i);
+      }
+      const stride = Math.max(1, Math.floor(vertices.length / 128));
+      this.footSamples.push({ mesh, vertices: vertices.filter((_, index) => index % stride === 0) });
+    });
     this.ready = true;
   }
 
@@ -89,7 +110,7 @@ export class GameView {
 
   resetDynamics(): void {
     for (const obj of this.carWraps.values()) this.scene.remove(obj);
-    for (const ped of this.pedWraps.values()) this.scene.remove(ped.obj);
+    for (const ped of this.pedWraps.values()) { ped.clips.dispose(); this.scene.remove(ped.obj); }
     this.carWraps.clear();
     this.pedWraps.clear();
   }
@@ -102,6 +123,19 @@ export class GameView {
     this.playerWrap.visible = p.inVehicle < 0;
     this.heroes.playerClips.play(p.anim, p.anim.startsWith("Jump") || p.anim.startsWith("Punch") || p.anim === "Pistol_Shoot" ? 0.08 : 0.18);
     this.heroes.playerClips.update(dt);
+    // The mesh has different shoe proportions; align its current soles to the
+    // simulation's ground plane without changing the source rig or clip curves.
+    this.playerVisual.position.y = 0;
+    this.playerWrap.updateMatrixWorld(true);
+    let sole = Infinity;
+    for (const sample of this.footSamples) {
+      for (const index of sample.vertices) {
+        sample.mesh.getVertexPosition(index, this.footVertex);
+        sample.mesh.localToWorld(this.footVertex);
+        sole = Math.min(sole, this.footVertex.y - p.y);
+      }
+    }
+    if (Number.isFinite(sole)) this.playerVisual.position.y = -sole;
 
     this.syncVehicles(state);
     this.syncPeds(state, dt);
@@ -139,6 +173,8 @@ export class GameView {
     this.resizeObserver.disconnect();
     window.visualViewport?.removeEventListener("resize", this.resize);
     window.removeEventListener("resize", this.resize);
+    this.resetDynamics();
+    this.heroes?.playerClips.dispose();
     this.renderer.dispose();
   }
 
@@ -186,24 +222,34 @@ export class GameView {
         this.pedWraps.set(ped.id, wrap);
         this.scene.add(wrap.obj);
       }
+      const speed = Math.hypot(ped.x - wrap.x, ped.z - wrap.z) / Math.max(dt, 0.001);
+      wrap.x = ped.x; wrap.z = ped.z;
       wrap.obj.position.set(ped.x, 0, ped.z);
-      wrap.obj.rotation.y = ped.yaw + Math.PI;
+      wrap.obj.rotation.y = ped.yaw;
       wrap.obj.visible = ped.health > 0 && ped.vehicleId < 0;
       if (wrap.clips) {
-        const moving = ped.kind === "cop" ? "Sprint_Loop" : "Walk_Loop";
+        const moving = speed < 0.15 || ped.stunned > 0 ? "Idle_Loop" : ped.fleeing || wrap.cop ? "Sprint_Loop" : "Walk_Loop";
         wrap.clips.play(ped.health <= 0 ? "Death01" : moving, 0.2);
+        if (moving !== "Idle_Loop") wrap.clips.setSpeed(speed / (moving === "Walk_Loop" ? 1.22 : 3.9));
         wrap.clips.update(dt);
       }
     }
   }
 
-  private makePed(ped: PedState): { obj: THREE.Object3D; clips?: HeroClips; cop: boolean } {
+  private makePed(ped: PedState): { obj: THREE.Object3D; clips: HeroClips; cop: boolean; x: number; z: number } {
     if (ped.kind === "cop") {
       const root = cloneSkinned(this.heroes.copProto);
       const clips = new HeroClips(root, this.heroes.copClips);
-      return { obj: root, clips, cop: true };
+      return { obj: root, clips, cop: true, x: ped.x, z: ped.z };
     }
-    return { obj: makePedPrimitive("civ"), cop: false };
+    const variant = this.heroes.civilians[Math.abs(ped.id - 1) % this.heroes.civilians.length];
+    const root = cloneSkinned(variant.root);
+    return { obj: root, clips: new HeroClips(root, variant.clips), cop: false, x: ped.x, z: ped.z };
+  }
+
+  setSpeaking(actor: number | null, amount: number): void {
+    this.heroes.playerClips.setTalking(actor === 0 ? amount : 0);
+    for (const [id, ped] of this.pedWraps) ped.clips.setTalking(actor === id ? amount : 0);
   }
 
   private syncMarker(state: GameState): void {

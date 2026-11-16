@@ -81,6 +81,7 @@ export interface PedState {
   shootCd: number;
   vehicleId: number;
   stunned: number;
+  talkingUntil?: number;
 }
 
 export interface BulletState {

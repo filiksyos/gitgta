@@ -1,5 +1,6 @@
 import { Input } from "./core/input";
 import { createLoop } from "./core/loop";
+import { Conversation } from "./audio/conversation";
 import { AudioFx } from "./audio/audio";
 import { GameView } from "./render/view";
 import { createGame, resetGame, seedFromLogin, stepSim } from "./systems/sim";
@@ -24,6 +25,7 @@ export function startGame(opts: StartGameOptions): () => void {
   const input = new Input();
   input.attach(canvas);
   const audio = new AudioFx();
+  const conversation = new Conversation(canvas.parentElement ?? hudEl);
   const hud = new Hud(hudEl);
   hud.setDistrict(world);
   const screens = new Screens(overlayEl);
@@ -52,7 +54,7 @@ export function startGame(opts: StartGameOptions): () => void {
   let disposed = false;
   const enableAudio = () => {
     audio.resume();
-    touchEl.removeEventListener("pointerdown", enableAudio)
+    touchEl.removeEventListener("pointerdown", enableAudio);
     canvas.removeEventListener("pointerdown", enableAudio);
     window.removeEventListener("keydown", enableAudio);
   };
@@ -112,7 +114,11 @@ export function startGame(opts: StartGameOptions): () => void {
       }
     },
     (_alpha, dt) => {
-      if (view.isReady) view.sync(state, dt);
+      if (view.isReady) {
+        view.sync(state, dt);
+        const speech = conversation.update(state);
+        view.setSpeaking(speech.actor, speech.mouth);
+      }
       if (state.phase === "playing") hud.draw(state);
       view.render();
     },
@@ -122,13 +128,14 @@ export function startGame(opts: StartGameOptions): () => void {
 
   return () => {
     disposed = true;
-    touchEl.removeEventListener("pointerdown", enableAudio)
+    touchEl.removeEventListener("pointerdown", enableAudio);
     canvas.removeEventListener("pointerdown", enableAudio);
     window.removeEventListener("keydown", enableAudio);
     loop.stop();
     unmountTouch();
     input.detach();
     screens.dispose();
+    conversation.dispose();
     view.dispose();
   };
 }

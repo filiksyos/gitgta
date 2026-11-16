@@ -82,6 +82,10 @@ export function updateNpcs(state: GameState, district: District, dt: number): vo
     if (crime && dist2(ped.x, ped.z, p.x, p.z) < 18) ped.fleeing = true;
 
     if (ped.stunned > 0) continue;
+    if (!ped.fleeing && (ped.talkingUntil ?? 0) > state.time) {
+      ped.yaw = lerpAngle(ped.yaw, Math.atan2(p.x - ped.x, p.z - ped.z), 6 * dt);
+      continue;
+    }
 
     if (ped.fleeing) {
       const dx = ped.x - p.x;
