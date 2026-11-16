@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { ShareCity } from './ShareCity'
 import { Screens } from '@/game/ui/screens'
 import type { CityPayload } from '@/lib/city-from-github'
 import '@/game/style.css'
@@ -60,6 +61,7 @@ export function GameCanvas({ owner, repo }: GameCanvasProps) {
 
     return () => {
       cancelled = true
+      screens.dispose()
       stop?.()
       document.documentElement.classList.remove('game-active')
     }
@@ -67,6 +69,7 @@ export function GameCanvas({ owner, repo }: GameCanvasProps) {
 
   return (
     <div id="game-root">
+      <ShareCity owner={owner} repo={repo} />
       <canvas id="game-canvas" ref={canvasRef} />
       <div id="hud" className="hidden" ref={hudRef} />
       <div id="touch" className="hidden" ref={touchRef} />

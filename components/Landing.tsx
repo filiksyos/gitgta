@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { parseGitHubOwnerRepoInput, parseGitHubProfileInput } from '@/lib/parse-github-profile'
@@ -36,6 +37,7 @@ export function Landing() {
       <div className="hero-shade" />
       <div className="hero-content">
         <h1 id="hero-title">GTA VI <span>For Devs</span></h1>
+        <p className="hero-description">Your contribution graph turned into a city.</p>
         <form className="city-form" onSubmit={(event) => { event.preventDefault(); go() }} noValidate>
           <label htmlFor="github-profile" className="sr-only">GitHub username or URL</label>
           <div className="city-input-row">
@@ -45,6 +47,7 @@ export function Landing() {
           </div>
           {error ? <p id="city-error" className="form-error" role="alert">{error}</p> : null}
         </form>
+        <p className="city-examples">Try <Link href="/torvalds">torvalds</Link><span> · </span><Link href="/sindresorhus">sindresorhus</Link><span> · </span><button type="button" onClick={() => inputRef.current?.focus()}>or your own</button></p>
       </div>
     </main>
   )

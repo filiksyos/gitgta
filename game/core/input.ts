@@ -43,6 +43,13 @@ export class Input {
     this.canvas = null;
   }
 
+  reset(): void {
+    this.keys.clear();
+    this.lookX = this.lookY = this.joyX = this.joyZ = 0;
+    this.punchQueued = this.shootQueued = this.interactQueued = this.jumpQueued = false;
+    this.touchSprint = this.touchJump = this.prevInteract = false;
+  }
+
   consume(): InputIntent {
     const k = this.keys;
     let x = 0;
@@ -112,6 +119,7 @@ export class Input {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    if (this.canvas?.parentElement?.querySelector("dialog[open]")) return;
     this.keys.add(e.code.toLowerCase());
     if (e.code === "Space") {
       e.preventDefault();
