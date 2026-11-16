@@ -576,3 +576,20 @@ button.btn-use {
     line-height: 1.55;
   }
 }
+
+.city-share-trigger {position:absolute;z-index:4;top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:10px 16px;border:1px solid #f8b0d980;border-radius:999px;background:#28142fe8;color:#ffd5eb;font:700 12px Arial,sans-serif;cursor:pointer;white-space:nowrap;}
+.city-share-dialog {margin:auto;width:min(540px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:1px solid #c887b5;border-radius:18px;background:#211229;color:#fff0f6;box-shadow:0 24px 100px #0009;overflow:auto;touch-action:pan-y;}
+.city-share-dialog::backdrop {background:#100918cc;backdrop-filter:blur(8px);}
+.city-share-body {position:relative;padding:26px;}
+.city-share-close {position:absolute;right:14px;top:10px;background:none;border:0;color:#f6c5e5;font-size:28px;cursor:pointer;}
+.city-share-eyebrow {margin:0 0 8px;color:#ef9fce;text-transform:uppercase;letter-spacing:3px;font-size:10px;}
+.city-share-body h2 {margin:0 24px 20px 0;font-size:25px;line-height:1.2;}
+.city-share-body img {display:block;width:100%;height:auto;border-radius:10px;background:#321b43;}
+.city-share-actions {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 12px;}
+.city-share-actions a,.city-share-actions button {display:block;text-align:center;text-decoration:none;padding:12px 8px;border:1px solid #a366a3;border-radius:8px;background:#45234f;color:#ffdfef;font:700 13px Arial,sans-serif;cursor:pointer;}
+.city-share-actions a:first-child {background:linear-gradient(100deg,#ffb8b0,#e99bda);color:#301636;border-color:transparent;}
+.city-share-url {box-sizing:border-box;width:100%;padding:12px;border:1px solid #765079;border-radius:8px;background:#180f20;color:#dcbfdc;font:12px Arial,sans-serif;}
+.city-share-copy-post {padding:12px 0 0;color:#f8b8de;background:none;border:0;text-decoration:underline;cursor:pointer;}
+.city-share-note,.city-share-status {font:12px/1.6 Arial,sans-serif;color:#c7accb;margin:10px 0 0;}
+.city-share-status {color:#ffc1df;min-height:20px;}
+@media(max-width:600px) {.city-share-trigger {top:auto;bottom:max(16px,env(safe-area-inset-bottom));}.city-share-body {padding:22px;}}

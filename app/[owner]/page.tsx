@@ -1,3 +1,4 @@
+import { cityMetadata } from '@/lib/city-metadata'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { GameCanvas } from '@/components/GameCanvas'
@@ -10,10 +11,7 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { owner: ownerRaw } = await params
   const owner = decodeURIComponent(ownerRaw)
-  return {
-    title: `${owner} — GitGTA`,
-    description: `Drive ${owner}'s GitHub commit skyline in GitGTA.`,
-  }
+  return cityMetadata(owner)
 }
 
 export default async function OwnerPage({ params }: PageProps) {

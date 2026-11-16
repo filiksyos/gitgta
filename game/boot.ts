@@ -72,6 +72,10 @@ export function startGame(opts: StartGameOptions): () => void {
 
   const loop = createLoop(
     (dt) => {
+      if (canvas.parentElement?.querySelector("dialog[open]")) {
+        input.reset();
+        return;
+      }
       const intent = input.consume();
       stepSim(state, district, intent, dt);
 
@@ -124,6 +128,7 @@ export function startGame(opts: StartGameOptions): () => void {
     loop.stop();
     unmountTouch();
     input.detach();
+    screens.dispose();
     view.dispose();
   };
 }
