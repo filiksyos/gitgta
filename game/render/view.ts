@@ -3,6 +3,7 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { GameState, PedState, VehicleState } from "../core/types";
 import type { District } from "../world/district";
 import { buildCity, makeMarker } from "./city";
+import { loadDowntown } from "./downtown";
 import { HeroClips, loadHeroes, type LoadedHeroes } from "./heroes";
 
 export class GameView {
@@ -23,6 +24,7 @@ export class GameView {
   private muzzle = new THREE.PointLight(0xffee88, 0, 8);
   private clockShake = new THREE.Vector3();
   private ready = false;
+  private disposed = false;
   private cityRoot: THREE.Object3D | null = null;
   private camRay = new THREE.Raycaster();
   private camFrom = new THREE.Vector3();
@@ -80,8 +82,13 @@ export class GameView {
   }
 
   async boot(district: District): Promise<void> {
-    this.cityRoot = buildCity(this.scene, district, this.quality);
-    this.heroes = await loadHeroes();
+    const [kit, heroes] = await Promise.all([loadDowntown(), loadHeroes()]);
+    if (this.disposed) {
+      heroes.playerClips.dispose();
+      return;
+    }
+    this.cityRoot = buildCity(this.scene, district, this.quality, kit);
+    this.heroes = heroes;
     this.playerVisual.add(this.heroes.player);
     this.playerWrap.add(this.playerVisual);
     this.heroes.player.traverse((object) => {
@@ -170,11 +177,28 @@ export class GameView {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.resizeObserver.disconnect();
     window.visualViewport?.removeEventListener("resize", this.resize);
     window.removeEventListener("resize", this.resize);
     this.resetDynamics();
     this.heroes?.playerClips.dispose();
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.MeshStandardMaterial | THREE.MeshBasicMaterial>();
+    this.cityRoot?.traverse((object) => {
+      if (object instanceof THREE.InstancedMesh) {
+        object.dispose();
+      } else if (object instanceof THREE.Mesh) {
+        geometries.add(object.geometry);
+        materials.add(object.material);
+      }
+    });
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => {
+      material.map?.dispose();
+      material.dispose();
+    });
+    this.cityRoot?.removeFromParent();
     this.renderer.dispose();
   }
 

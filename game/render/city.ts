@@ -1,14 +1,10 @@
 import * as THREE from "three";
 import type { District } from "../world/district";
-import { ROAD_HALF } from "../world/district";
-import { asphaltTexture, commitFacadeTexture, dirtTexture, facadeTexture, sidewalkTexture } from "./textures";
+import { buildDowntown, type DowntownKit } from "./downtown";
+import { dirtTexture } from "./textures";
 
-export function buildCity(scene: THREE.Scene, district: District, quality: "high" | "low"): THREE.Group {
+export function buildCity(scene: THREE.Scene, district: District, quality: "high" | "low", kit: DowntownKit): THREE.Group {
   const root = new THREE.Group();
-  const asphalt = asphaltTexture();
-  asphalt.repeat.set(18, 18);
-  const walk = sidewalkTexture();
-  walk.repeat.set(20, 20);
   const dirt = dirtTexture();
   dirt.repeat.set(14, 14);
 
@@ -19,7 +15,7 @@ export function buildCity(scene: THREE.Scene, district: District, quality: "high
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(spanX + 40, spanZ + 40),
-    new THREE.MeshStandardMaterial({ map: dirt, roughness: 1, color: 0x161b22 }),
+    new THREE.MeshStandardMaterial({ map: dirt, roughness: 1, color: 0x99928b }),
   );
   ground.position.set(midX, 0, midZ);
   ground.rotation.x = -Math.PI / 2;
@@ -27,62 +23,16 @@ export function buildCity(scene: THREE.Scene, district: District, quality: "high
   ground.name = "ground";
   root.add(ground);
 
-  const roadMat = new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.92, color: 0x888888 });
-  const walkMat = new THREE.MeshStandardMaterial({ map: walk, roughness: 0.95, color: 0x999084 });
-
-  for (const sx of district.streetsX) {
-    const road = new THREE.Mesh(new THREE.BoxGeometry(ROAD_HALF * 2, 0.06, spanZ), roadMat);
-    road.position.set(sx, 0.03, midZ);
-    road.receiveShadow = true;
-    root.add(road);
-  }
-  for (const sz of district.streetsZ) {
-    const road = new THREE.Mesh(new THREE.BoxGeometry(spanX, 0.06, ROAD_HALF * 2), roadMat);
-    road.position.set(midX, 0.03, sz);
-    road.receiveShadow = true;
-    root.add(road);
-  }
-
-  for (const s of district.sidewalks) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(s.w, 0.12, s.d), walkMat);
-    mesh.position.set(s.x, 0.06, s.z);
-    mesh.receiveShadow = true;
-    root.add(mesh);
-  }
-
-  for (const a of district.alleys) {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(a.w, 0.05, a.d),
-      new THREE.MeshStandardMaterial({ color: 0x2c2a28, roughness: 1 }),
-    );
-    mesh.position.set(a.x, 0.04, a.z);
-    root.add(mesh);
-  }
-
+  buildDowntown(root, district, kit, quality === "high");
+  const cameraBox = new THREE.BoxGeometry(1, 1, 1);
+  const cameraBoxMaterial = new THREE.MeshBasicMaterial();
   for (const b of district.buildings) {
-    const tex =
-      b.commitLevel != null ? commitFacadeTexture(b.commitLevel, b.windows) : facadeTexture(b.hue, true);
-    const mat = new THREE.MeshStandardMaterial({
-      map: tex,
-      roughness: 0.86,
-      color: 0xdddddd,
-      emissive: b.commitLevel != null ? 0x0e4429 : 0x000000,
-      emissiveIntensity: b.commitLevel != null ? 0.22 + (b.commitLevel ?? 0) * 0.08 : 0,
-    });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), mat);
-    mesh.position.set(b.x, b.h / 2, b.z);
-    mesh.castShadow = quality === "high";
-    mesh.receiveShadow = true;
-    root.add(mesh);
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(b.w + 0.3, 0.25, b.d + 0.3),
-      new THREE.MeshStandardMaterial({
-        color: b.commitLevel != null ? 0x052e16 : 0x3a2a22,
-        roughness: 1,
-      }),
-    );
-    roof.position.set(b.x, b.h + 0.1, b.z);
-    root.add(roof);
+    const obstruction = new THREE.Mesh(cameraBox, cameraBoxMaterial);
+    obstruction.position.set(b.x, b.h / 2, b.z);
+    obstruction.scale.set(b.w, b.h, b.d);
+    obstruction.visible = false;
+    root.add(obstruction);
+
     if (b.label) {
       const sign = makeSign(b.label);
       sign.position.set(b.x, b.h + 1.4, b.z);
@@ -91,10 +41,11 @@ export function buildCity(scene: THREE.Scene, district: District, quality: "high
   }
 
   for (const p of district.props) {
-    root.add(makeProp(p.x, p.z, p.yaw, p.kind, quality));
+    if (p.kind === "lamp" || p.kind === "palm" || p.kind === "fence") {
+      root.add(makeProp(p.x, p.z, p.yaw, p.kind, quality));
+    }
   }
 
-  addSkyline(root, district);
   addBounds(root, district);
   scene.add(root);
   return root;
@@ -153,65 +104,29 @@ function makeProp(x: number, z: number, yaw: number, kind: string, quality: "hig
     leaves.position.y = 4.4;
     leaves.scale.set(1.2, 0.45, 1.2);
     g.add(trunk, leaves);
-  } else if (kind === "dumpster") {
-    const box = new THREE.Mesh(
-      new THREE.BoxGeometry(1.4, 1.1, 0.9),
-      new THREE.MeshStandardMaterial({ color: 0x2d6b3a, roughness: 0.7, metalness: 0.2 }),
-    );
-    box.position.y = 0.55;
-    box.castShadow = true;
-    g.add(box);
-  } else if (kind === "hydrant") {
-    const h = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.14, 0.16, 0.7, 6),
-      new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5 }),
-    );
-    h.position.y = 0.35;
-    g.add(h);
-  } else if (kind === "fence") {
+  } else {
     const f = new THREE.Mesh(
       new THREE.BoxGeometry(2.4, 1.2, 0.08),
       new THREE.MeshStandardMaterial({ color: 0x7a7a7a, metalness: 0.3, roughness: 0.5 }),
     );
     f.position.y = 0.6;
     g.add(f);
-  } else {
-    const c = new THREE.Mesh(
-      new THREE.BoxGeometry(0.7, 0.7, 0.7),
-      new THREE.MeshStandardMaterial({ color: 0x8a6230, roughness: 1 }),
-    );
-    c.position.y = 0.35;
-    g.add(c);
   }
   return g;
 }
 
-function addSkyline(root: THREE.Group, district: District): void {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x0e4429, roughness: 1, emissive: 0x052e16, emissiveIntensity: 0.35 });
-  const midX = (district.worldMinX + district.worldMaxX) / 2;
-  const midZ = (district.worldMinZ + district.worldMaxZ) / 2;
-  const r = Math.max(district.worldMaxX - district.worldMinX, district.worldMaxZ - district.worldMinZ) / 2 + 36;
-  for (let i = 0; i < 18; i++) {
-    const ang = (i / 18) * Math.PI * 2;
-    const h = 12 + (i % 5) * 9;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(12, h, 12), mat);
-    m.position.set(midX + Math.sin(ang) * r, h / 2, midZ + Math.cos(ang) * r);
-    root.add(m);
-  }
-}
-
 function addBounds(root: THREE.Group, district: District): void {
-  const wall = new THREE.MeshStandardMaterial({ color: 0x4a3a58, roughness: 1 });
+  const wall = new THREE.MeshStandardMaterial({ color: 0x887977, roughness: 1 });
   const spanX = district.worldMaxX - district.worldMinX + 8;
   const spanZ = district.worldMaxZ - district.worldMinZ + 8;
   const midX = (district.worldMinX + district.worldMaxX) / 2;
   const midZ = (district.worldMinZ + district.worldMaxZ) / 2;
-  const north = new THREE.Mesh(new THREE.BoxGeometry(spanX, 6, 2), wall);
-  north.position.set(midX, 3, district.worldMaxZ + 2);
+  const north = new THREE.Mesh(new THREE.BoxGeometry(spanX, 1.2, 2), wall);
+  north.position.set(midX, 0.6, district.worldMaxZ + 2);
   const south = north.clone();
   south.position.z = district.worldMinZ - 2;
-  const east = new THREE.Mesh(new THREE.BoxGeometry(2, 6, spanZ), wall);
-  east.position.set(district.worldMaxX + 2, 3, midZ);
+  const east = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, spanZ), wall);
+  east.position.set(district.worldMaxX + 2, 0.6, midZ);
   const west = east.clone();
   west.position.x = district.worldMinX - 2;
   root.add(north, south, east, west);
